@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { UploadStep } from "./UploadStep";
-import { SearchStep } from "./SearchStep";
 import { LoadingStep } from "./LoadingStep";
 import { ResultsStep } from "./ResultsStep";
 import { JobSearchState, UploadedFile, CurrentStep } from "@/types";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Search, Upload } from "lucide-react";
 
 export default function JobSearchApp() {
   const { toast } = useToast();
@@ -30,22 +34,6 @@ export default function JobSearchApp() {
     setState({
       ...state,
       resume: null,
-    });
-  };
-
-  const handleContinue = () => {
-    if (state.resume) {
-      setState({
-        ...state,
-        currentStep: "search",
-      });
-    }
-  };
-
-  const handleGoBack = () => {
-    setState({
-      ...state,
-      currentStep: "upload",
     });
   };
 
@@ -103,55 +91,106 @@ export default function JobSearchApp() {
       
       setState({
         ...state,
-        currentStep: "search",
+        currentStep: "upload",
         isSearching: false,
         error: "Failed to search for jobs",
       });
     }
   };
 
-  const handleSearchAgain = () => {
+  const resetToUpload = () => {
     setState({
       ...state,
-      currentStep: "search",
+      currentStep: "upload",
     });
   };
 
+  // Simple job search form for the first screen
+  const renderJobSearchForm = () => {
+    return (
+      <div className="mt-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="job-title" className="text-gray-700">
+              Desired Job Title
+            </Label>
+            <Input
+              type="text"
+              id="job-title"
+              className="mt-1"
+              placeholder="e.g. Software Engineer"
+              value={state.jobTitle}
+              onChange={(e) => updateJobPreferences(e.target.value, state.location)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="location" className="text-gray-700">
+              Location (Optional)
+            </Label>
+            <Input
+              type="text"
+              id="location"
+              className="mt-1"
+              placeholder="e.g. New York, NY"
+              value={state.location}
+              onChange={(e) => updateJobPreferences(state.jobTitle, e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-center mt-6">
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-10 py-2 font-medium"
+            onClick={handleStartSearch}
+            disabled={!state.resume || !state.jobTitle}
+          >
+            <Search className="mr-2 h-5 w-5" />
+            Generate Cover Letters
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-[#333333] sm:text-4xl">Find Your Perfect Job</h1>
-        <p className="mt-3 text-lg text-[#86888A]">
-          Upload your resume and let LinkedIn MCP find the best opportunities for you
-        </p>
-      </div>
+    <div className="space-y-6">
+      <Card className="overflow-hidden border-0 shadow-md">
+        <CardContent className="p-6">
+          {state.currentStep === "upload" && (
+            <>
+              <div className="flex flex-col gap-6">
+                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                  <h2 className="font-medium text-indigo-800 flex items-center gap-2">
+                    <Upload size={18} />
+                    How it works
+                  </h2>
+                  <ol className="mt-2 text-sm text-gray-600 space-y-1 list-decimal pl-5">
+                    <li>Upload your resume (PDF, DOCX, DOC, or TXT)</li>
+                    <li>Enter job title and location you're interested in</li>
+                    <li>Get custom cover letters for each job listing</li>
+                    <li>Download or send them directly via email</li>
+                  </ol>
+                </div>
+                
+                <UploadStep
+                  resume={state.resume}
+                  onUpload={handleResumeUpload}
+                  onRemove={handleRemoveResume}
+                  onContinue={() => {}}
+                />
+                
+                {state.resume && renderJobSearchForm()}
+              </div>
+            </>
+          )}
 
-      <div className="flex flex-col space-y-6">
-        {state.currentStep === "upload" && (
-          <UploadStep
-            resume={state.resume}
-            onUpload={handleResumeUpload}
-            onRemove={handleRemoveResume}
-            onContinue={handleContinue}
-          />
-        )}
+          {state.currentStep === "loading" && <LoadingStep />}
 
-        {state.currentStep === "search" && (
-          <SearchStep
-            jobTitle={state.jobTitle}
-            location={state.location}
-            onUpdatePreferences={updateJobPreferences}
-            onStartSearch={handleStartSearch}
-            onGoBack={handleGoBack}
-          />
-        )}
-
-        {state.currentStep === "loading" && <LoadingStep />}
-
-        {state.currentStep === "results" && (
-          <ResultsStep jobs={state.jobs} onSearchAgain={handleSearchAgain} />
-        )}
-      </div>
+          {state.currentStep === "results" && (
+            <ResultsStep jobs={state.jobs} onSearchAgain={resetToUpload} />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
