@@ -4,11 +4,13 @@ import { Upload } from 'lucide-react';
 interface ResumeUploadProps {
   onUploadSuccess: (resume: any) => void;
   isUploading?: boolean;
+  hasResume?: boolean;
 }
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({
   onUploadSuccess,
-  isUploading = false
+  isUploading = false,
+  hasResume = false
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -143,7 +145,12 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         disabled={isUploading || uploading}
         className="w-full mt-4 py-3 bg-secondary hover:bg-secondary/90 text-center rounded-md transition-colors text-sm font-medium"
       >
-        {isUploading || uploading ? "Processing..." : "Find Matching Jobs"}
+        {isUploading || uploading
+          ? "Processing..."
+          : hasResume
+            ? "Find Matching Jobs"
+            : "Upload CV"
+        }
       </button>
     </div>
   );

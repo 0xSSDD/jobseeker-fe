@@ -89,6 +89,7 @@ export default function Home() {
       <ResumeUpload
         onUploadSuccess={handleUploadSuccess}
         isUploading={isUploading}
+        hasResume={resume !== null}
       />
 
       {/* <JobMatchesTable
