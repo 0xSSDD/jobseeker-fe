@@ -1,213 +1,148 @@
-import { useState, useRef, useCallback } from 'react'
-import { Upload, File, X, Loader2 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Resume } from '@/types'
-import { uploadFile } from '@/utils/helpers'
+import { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { FiUpload, FiFile, FiX, FiLoader } from 'react-icons/fi';
+import { Resume } from '@/models/Resume';
+import { uploadResumeFile } from '@/lib/supabase';
+import resumeParser from '@/services/resumeParser';
 
 interface UploadComponentProps {
   onUploadSuccess: (resume: Resume) => void;
 }
 
 export function UploadComponent({ onUploadSuccess }: UploadComponentProps) {
-  const [dragActive, setDragActive] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setUploadedFile(file);
+      handleFile(file);
     }
-  }, [])
+  }, []);
   
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0])
-    }
-  }, [])
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    maxFiles: 1,
+    multiple: false
+  });
   
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0])
-    }
-  }, [])
-  
-  const handleFile = (file: File) => {
-    // Check file type (simple validation)
-    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-    
-    if (!validTypes.includes(file.type)) {
-      setError('Please upload a PDF or Word document')
-      return
-    }
-    
-    // Check file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size exceeds 5MB limit')
-      return
-    }
-    
-    setSelectedFile(file)
-    setError(null)
-  }
-  
-  const handleUpload = async () => {
-    if (!selectedFile) return
-    
-    setUploading(true)
-    setError(null)
-    
+  const handleFile = async (file: File) => {
     try {
-      // Upload file to server
-      const resumeData = await uploadFile(selectedFile)
+      setIsUploading(true);
+      setUploadError(null);
       
-      // Notify parent component of successful upload
-      onUploadSuccess(resumeData)
-    } catch (err: any) {
-      console.error('Upload error:', err)
-      setError(err.message || 'An error occurred during upload')
-      setUploading(false)
+      // 1. Upload file to Supabase storage
+      const { filePath } = await uploadResumeFile(file);
+      
+      // 2. Convert file to buffer for parsing
+      const buffer = await file.arrayBuffer().then(ab => Buffer.from(ab));
+      
+      // 3. Parse resume using ResumeParser service
+      const resumeData = await resumeParser.parseResume(buffer);
+      
+      // 4. Add file path to resume data
+      const completeResume: Resume = {
+        ...resumeData,
+        file_path: filePath
+      };
+      
+      // 5. Call the success callback
+      onUploadSuccess(completeResume);
+      
+    } catch (error) {
+      console.error('Resume upload error:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload resume');
+    } finally {
+      setIsUploading(false);
     }
-  }
+  };
   
-  const onButtonClick = () => {
-    if (inputRef.current) {
-      inputRef.current.click()
-    }
-  }
-  
-  const clearFile = () => {
-    setSelectedFile(null)
-    setError(null)
-    if (inputRef.current) {
-      inputRef.current.value = ''
-    }
-  }
+  const removeFile = () => {
+    setUploadedFile(null);
+    setUploadError(null);
+  };
   
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold gradient-text">Find Your Dream Job</h2>
-        <p className="text-muted-foreground mt-2">
-          Upload your resume to start the job matching process
+    <div className="w-full max-w-lg mx-auto">
+      <div className="mb-8 text-center">
+        <h2 className="text-2xl font-bold mb-2">Upload Your Resume</h2>
+        <p className="text-gray-600">
+          Upload your resume to find matching job opportunities tailored to your skills and experience.
         </p>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Upload Your Resume</CardTitle>
-          <CardDescription>
-            We'll analyze your resume to find the most relevant job opportunities
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <div 
-            className={`
-              border-2 border-dashed rounded-lg p-10
-              ${dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/20'}
-              ${error ? 'border-red-500/50 bg-red-50' : ''}
-              transition-colors duration-200
-            `}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx"
-              onChange={handleChange}
-            />
-            
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              {selectedFile ? (
-                <>
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <File className="h-8 w-8 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    onClick={clearFile}
-                  >
-                    <X className="mr-1 h-4 w-4" /> Remove file
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  {error ? (
-                    <div className="text-red-500">
-                      <p className="font-medium">Error</p>
-                      <p className="text-sm">{error}</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="font-medium">
-                        Drag & drop your resume here, or {' '}
-                        <button
-                          type="button"
-                          className="text-primary hover:underline focus:outline-none"
-                          onClick={onButtonClick}
-                        >
-                          browse
-                        </button>
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Supports PDF, DOC, DOCX (up to 5MB)
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+      {!uploadedFile ? (
+        <div 
+          {...getRootProps()}
+          className={`
+            border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors
+            ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'}
+          `}
+        >
+          <input {...getInputProps()} />
+          <div className="flex flex-col items-center">
+            <FiUpload className="text-4xl text-primary mb-4" />
+            <p className="text-lg font-medium">
+              {isDragActive ? 'Drop your resume here' : 'Drag & drop your resume here'}
+            </p>
+            <p className="text-gray-500 mt-2">or click to browse files</p>
+            <p className="text-xs text-gray-400 mt-4">
+              Accepted file types: PDF, DOC, DOCX
+            </p>
           </div>
-        </CardContent>
-        
-        <CardFooter className="flex justify-between border-t pt-4">
-          <p className="text-sm text-muted-foreground">
-            Your resume will be stored securely and only used for job matching
-          </p>
-          <Button
-            onClick={handleUpload}
-            disabled={!selectedFile || uploading}
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              'Continue'
-            )}
-          </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      ) : (
+        <div className="border rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-primary/10 p-3 rounded-full">
+                <FiFile className="text-xl text-primary" />
+              </div>
+              <div className="ml-4">
+                <p className="font-medium">{uploadedFile.name}</p>
+                <p className="text-sm text-gray-500">
+                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={removeFile}
+              className="text-gray-500 hover:text-red-500 transition-colors"
+              disabled={isUploading}
+            >
+              <FiX className="text-xl" />
+            </button>
+          </div>
+          
+          {isUploading && (
+            <div className="mt-4 flex items-center text-primary">
+              <FiLoader className="animate-spin mr-2" />
+              <span>Processing resume...</span>
+            </div>
+          )}
+          
+          {uploadError && (
+            <div className="mt-4 text-red-500 text-sm">
+              {uploadError}
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="mt-6 text-sm text-gray-500">
+        <p>
+          Your resume will be analyzed to identify your skills, experience, 
+          and qualifications to match you with relevant job opportunities.
+        </p>
+      </div>
     </div>
-  )
+  );
 }

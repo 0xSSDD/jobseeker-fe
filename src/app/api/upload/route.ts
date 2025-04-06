@@ -1,78 +1,77 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server';
+import { uploadFile } from '@/utils/helpers';
+import resumeParser from '@/services/resumeParser';
+import { supabase } from '@/lib/supabase';
 
-// Handle file uploads
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get('file') as File
+    // Parse the form data
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
     
     if (!file) {
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
-      )
+      );
     }
     
-    // Get the file extension
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${fileExt}`
-    const filePath = `${fileName}`
+    // Upload the file to Supabase storage
+    const { filePath } = await uploadFile(file, 'resumes');
     
-    // Upload the file to the "resumes" bucket
-    const { data, error } = await supabase.storage
-      .from('resumes')
-      .upload(filePath, file)
+    // Convert file to buffer for parsing
+    const buffer = Buffer.from(await file.arrayBuffer());
     
-    if (error) {
-      console.error('Supabase storage error:', error)
-      return NextResponse.json(
-        { error: 'Failed to upload file' },
-        { status: 500 }
-      )
-    }
+    // Parse resume using ResumeParser service
+    const resumeData = await resumeParser.parseResume(buffer);
     
-    // Get the public URL for the file
-    const { data: { publicUrl } } = supabase.storage
-      .from('resumes')
-      .getPublicUrl(filePath)
-    
-    // Extract text from the file (simplified for demo)
-    // In a real implementation, you would use a PDF parsing library
-    // or send the file to a serverless function for processing
-    const skills = ['JavaScript', 'React', 'TypeScript', 'Next.js']
-    const latestRole = 'Software Engineer'
-    
-    // Create a resume entry in the database
-    const { data: resumeData, error: resumeError } = await supabase
+    // Save to database
+    const { data: resumeRecord, error } = await supabase
       .from('resumes')
       .insert({
-        name: file.name,
+        name: resumeData.name,
+        email: resumeData.email,
+        phone: resumeData.phone,
         file_path: filePath,
-        latest_role: latestRole,
-        skills: skills
+        latest_role: resumeData.latestRole?.title || '',
+        skills: resumeData.skills || []
       })
       .select()
-      .single()
+      .single();
     
-    if (resumeError) {
-      console.error('Supabase database error:', resumeError)
+    if (error) {
+      console.error('Error saving resume to database:', error);
       return NextResponse.json(
-        { error: 'Failed to save resume data' },
+        { error: 'Failed to save resume' },
         { status: 500 }
-      )
+      );
+    }
+    
+    // Save experiences to database if available
+    if (resumeData.experiences && resumeData.experiences.length > 0) {
+      const experiencesPromises = resumeData.experiences.map(exp => 
+        supabase.from('experiences').insert({
+          resume_id: resumeRecord.id,
+          title: exp.title,
+          company: exp.company,
+          start_date: exp.startDate,
+          end_date: exp.endDate,
+          description: exp.description
+        })
+      );
+      
+      await Promise.all(experiencesPromises);
     }
     
     return NextResponse.json({
-      message: 'File uploaded successfully',
-      resume: resumeData
-    })
-    
+      ...resumeRecord,
+      experiences: resumeData.experiences
+    });
   } catch (error) {
-    console.error('Upload error:', error)
+    console.error('Error in resume upload:', error);
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: error instanceof Error ? error.message : 'Failed to process resume' },
       { status: 500 }
-    )
+    );
   }
 }

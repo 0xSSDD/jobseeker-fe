@@ -1,11 +1,27 @@
-import { useState } from 'react'
-import { Calendar, MapPin, Briefcase, Building, ExternalLink, Mail, Download, Loader2 } from 'lucide-react'
-import { SiLinkedin, SiIndeed, SiGlassdoor } from 'react-icons/si'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Job } from '@/types'
-import { formatDate, formatSalary } from '@/utils/helpers'
+import { useState } from 'react';
+import { FiExternalLink, FiDownload, FiMail, FiLoader } from 'react-icons/fi';
+import { SiLinkedin, SiIndeed, SiGlassdoor } from 'react-icons/si';
+import { TbBrandZapier } from 'react-icons/tb';
+
+interface Job {
+  id: string;
+  resume_id: string | null;
+  title: string;
+  company: string;
+  location: string | null;
+  description: string;
+  requirements: string[] | null;
+  url: string;
+  source: string;
+  posted_date: string | null;
+  salary: string | null;
+  hiring_manager_name: string | null;
+  hiring_manager_email: string | null;
+  hiring_manager_title: string | null;
+  processed: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface JobCardProps {
   job: Job;
@@ -16,170 +32,140 @@ interface JobCardProps {
 
 export function JobCard({ 
   job, 
-  onGenerateCoverLetter,
+  onGenerateCoverLetter, 
   isGenerating = false,
   coverLetterUrl = null
 }: JobCardProps) {
-  const [showFullDescription, setShowFullDescription] = useState(false)
+  const [expanded, setExpanded] = useState(false);
   
-  // Truncate description for preview
-  const maxLength = 250
-  const truncatedDescription = job.description.length > maxLength
-    ? job.description.substring(0, maxLength) + '...'
-    : job.description
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Not specified';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
   
-  // Check if this specific job is in the loading state
-  const isThisJobGenerating = isGenerating
+  const formatSalary = (salary: string | null) => {
+    if (!salary) return 'Not specified';
+    return salary;
+  };
   
-  // Create email link for Gmail with pre-filled subject and body
-  const createGmailLink = () => {
-    if (!coverLetterUrl) return ''
+  const handleGmailClick = () => {
+    if (!coverLetterUrl) return;
     
-    const subject = `Application for ${job.title} position at ${job.company}`
-    const body = `Dear ${job.hiring_manager_name || 'Hiring Manager'},
+    const subject = `Application for ${job.title} position at ${job.company}`;
+    const to = job.hiring_manager_email || '';
+    const body = `
+Dear ${job.hiring_manager_name || 'Hiring Manager'},
 
-I am writing to express my interest in the ${job.title} position at ${job.company}.
+I hope this email finds you well. I am writing to express my interest in the ${job.title} position at ${job.company}.
 
 Please find my cover letter at: ${coverLetterUrl}
 
 Thank you for your consideration.
 
 Best regards,
-[Your Name]`
+[Your Name]
+    `;
     
-    const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${job.hiring_manager_email || ''}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    
-    return gmailLink
-  }
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(gmailUrl, '_blank');
+  };
+  
+  const shortDescription = job.description.length > 150 
+    ? job.description.substring(0, 150) + '...' 
+    : job.description;
   
   return (
-    <Card className="relative overflow-hidden border-l-4 border-l-primary">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-xl">{job.title}</CardTitle>
-              <SourceBadge source={job.source} logo={null} />
-            </div>
-            <CardDescription className="flex items-center gap-2 mt-1">
-              <Building className="h-4 w-4" />
-              <span>{job.company}</span>
-              
-              {job.location && (
-                <>
-                  <span className="mx-1">•</span>
-                  <MapPin className="h-4 w-4" />
-                  <span>{job.location}</span>
-                </>
-              )}
-              
-              {job.posted_date && (
-                <>
-                  <span className="mx-1">•</span>
-                  <Calendar className="h-4 w-4" />
-                  <span>{formatDate(job.posted_date)}</span>
-                </>
-              )}
-            </CardDescription>
+    <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center">
+            <SourceBadge source={job.source} logo={null} />
+            <h3 className="text-lg font-semibold ml-2">{job.title}</h3>
           </div>
           
-          {job.salary && (
-            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-              {formatSalary(job.salary)}
-            </Badge>
+          <a 
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-primary transition-colors"
+          >
+            <FiExternalLink />
+          </a>
+        </div>
+        
+        <div className="mb-3">
+          <p className="text-base font-medium">{job.company}</p>
+          <p className="text-sm text-gray-500">{job.location || 'Remote'}</p>
+        </div>
+        
+        <div className="mb-3">
+          <p className={expanded ? '' : 'line-clamp-2'}>
+            {expanded ? job.description : shortDescription}
+          </p>
+          {job.description.length > 150 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-sm text-primary hover:underline mt-1"
+            >
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
           )}
         </div>
-      </CardHeader>
-      
-      <CardContent>
-        <div className="space-y-4">
+        
+        <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
           <div>
-            <div className={`prose prose-sm max-w-none ${!showFullDescription && 'line-clamp-3'}`}>
-              <p>
-                {showFullDescription ? job.description : truncatedDescription}
-              </p>
-            </div>
-            {job.description.length > maxLength && (
-              <Button 
-                variant="link" 
-                className="px-0 h-auto font-medium mt-1"
-                onClick={() => setShowFullDescription(!showFullDescription)}
-              >
-                {showFullDescription ? 'Show less' : 'Read more'}
-              </Button>
-            )}
+            <span className="text-gray-500">Posted:</span> {formatDate(job.posted_date)}
           </div>
-          
-          {job.requirements && job.requirements.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium mb-2">Requirements</h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                {job.requirements.slice(0, 4).map((req, i) => (
-                  <li key={i} className="line-clamp-1">{req}</li>
-                ))}
-                {job.requirements.length > 4 && (
-                  <li className="text-primary">+{job.requirements.length - 4} more</li>
-                )}
-              </ul>
-            </div>
-          )}
+          <div>
+            <span className="text-gray-500">Salary:</span> {formatSalary(job.salary)}
+          </div>
         </div>
-      </CardContent>
-      
-      <CardFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4">
-        <Button 
-          variant="default" 
-          className="w-full sm:w-auto"
-          disabled={isThisJobGenerating || !!coverLetterUrl}
-          onClick={() => onGenerateCoverLetter(job.id)}
-        >
-          {isThisJobGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating Cover Letter
-            </>
-          ) : coverLetterUrl ? (
-            <>
-              <Download className="mr-2 h-4 w-4" />
-              Download Cover Letter
-            </>
+        
+        <div className="flex flex-wrap gap-2 mt-4">
+          {!coverLetterUrl ? (
+            <button
+              onClick={() => onGenerateCoverLetter(job.id)}
+              disabled={isGenerating}
+              className={`
+                flex items-center px-3 py-2 rounded-md text-sm font-medium
+                ${isGenerating 
+                  ? 'bg-gray-200 text-gray-500 cursor-wait' 
+                  : 'bg-primary text-white hover:bg-primary/90'}
+              `}
+            >
+              {isGenerating && <FiLoader className="animate-spin mr-2" />}
+              Generate Cover Letter
+            </button>
           ) : (
             <>
-              <Briefcase className="mr-2 h-4 w-4" />
-              Generate Cover Letter
+              <a 
+                href={coverLetterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20"
+              >
+                <FiDownload className="mr-2" />
+                Download Cover Letter
+              </a>
+              
+              <button
+                onClick={handleGmailClick}
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium bg-[#ea4335]/10 text-[#ea4335] hover:bg-[#ea4335]/20"
+              >
+                <FiMail className="mr-2" />
+                Compose in Gmail
+              </button>
             </>
           )}
-        </Button>
-        
-        {coverLetterUrl && (
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            asChild
-          >
-            <a href={createGmailLink()} target="_blank" rel="noopener noreferrer">
-              <Mail className="mr-2 h-4 w-4" />
-              Email with Gmail
-            </a>
-          </Button>
-        )}
-        
-        <div className="grow"></div>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          className="sm:ml-auto"
-          asChild
-        >
-          <a href={job.url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4" />
-            <span className="sr-only">Visit job posting</span>
-          </a>
-        </Button>
-      </CardFooter>
-    </Card>
-  )
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface SourceBadgeProps {
@@ -188,45 +174,34 @@ interface SourceBadgeProps {
 }
 
 function SourceBadge({ source, logo }: SourceBadgeProps) {
-  let badgeColor = ''
+  let icon;
+  let color;
   
-  switch(source) {
+  switch (source.toLowerCase()) {
     case 'linkedin':
-      badgeColor = 'bg-blue-50 text-blue-600 border-blue-200';
+      icon = <SiLinkedin />;
+      color = 'bg-[#0A66C2] text-white';
       break;
     case 'indeed':
-      badgeColor = 'bg-blue-50 text-blue-600 border-blue-200';
-      break;
-    case 'ziprecruiter':
-      badgeColor = 'bg-purple-50 text-purple-600 border-purple-200';
+      icon = <SiIndeed />;
+      color = 'bg-[#003A9B] text-white';
       break;
     case 'glassdoor':
-      badgeColor = 'bg-green-50 text-green-600 border-green-200';
+      icon = <SiGlassdoor />;
+      color = 'bg-[#0CAA41] text-white';
+      break;
+    case 'ziprecruiter':
+      icon = <TbBrandZapier />;
+      color = 'bg-[#5C6AC4] text-white';
       break;
     default:
-      badgeColor = 'bg-gray-50 text-gray-600 border-gray-200';
+      icon = <FiExternalLink />;
+      color = 'bg-gray-500 text-white';
   }
   
   return (
-    <Badge variant="outline" className={`${badgeColor} flex items-center gap-1`}>
-      {getSourceIcon(source)}
-      <span className="capitalize">{source}</span>
-    </Badge>
-  )
+    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${color}`}>
+      {icon}
+    </div>
+  );
 }
-
-// Helper function to get the correct icon for the job source
-const getSourceIcon = (source: string) => {
-  switch(source) {
-    case 'linkedin':
-      return <SiLinkedin className="w-3 h-3" />;
-    case 'indeed':
-      return <SiIndeed className="w-3 h-3" />;
-    case 'glassdoor':
-      return <SiGlassdoor className="w-3 h-3" />;
-    case 'ziprecruiter':
-      return <Briefcase className="w-3 h-3 text-[#5B4DE5]" />;
-    default:
-      return <Briefcase className="w-3 h-3" />;
-  }
-};

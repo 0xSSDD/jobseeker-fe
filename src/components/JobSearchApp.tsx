@@ -1,188 +1,224 @@
-import { useState } from 'react'
-import { UploadComponent } from './UploadComponent'
-import { SearchComponent } from './SearchComponent'
-import { LoadingComponent } from './LoadingComponent'
-import { ResultsComponent } from './ResultsComponent'
-import { Resume, JobSource, Job, CurrentStep } from '@/types'
-import { searchJobs, generateCoverLetter } from '@/utils/helpers'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { useState, useEffect } from 'react';
+import { UploadComponent } from './UploadComponent';
+import { SearchComponent } from './SearchComponent';
+import { LoadingComponent } from './LoadingComponent';
+import { ResultsComponent } from './ResultsComponent';
+import { Resume } from '@/models/Resume';
+import { jobSearchService, coverLetterService } from '@/services';
+
+interface JobSource {
+  id: number;
+  name: string;
+  key: string;
+  enabled: boolean;
+  logo: string | null;
+}
+
+interface Job {
+  id: string;
+  resume_id: string | null;
+  title: string;
+  company: string;
+  location: string | null;
+  description: string;
+  requirements: string[] | null;
+  url: string;
+  source: string;
+  posted_date: string | null;
+  salary: string | null;
+  hiring_manager_name: string | null;
+  hiring_manager_email: string | null;
+  hiring_manager_title: string | null;
+  processed: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface JobSearchAppProps {
   jobSources: JobSource[];
 }
 
+type Step = 'upload' | 'search' | 'loading' | 'results';
+
 export default function JobSearchApp({ jobSources }: JobSearchAppProps) {
-  const [state, setState] = useState({
-    currentStep: 'upload' as CurrentStep,
-    resume: null as Resume | null,
-    jobTitle: '',
-    location: '',
-    jobs: [] as Job[],
-    isSearching: false,
-    error: null as string | null,
-    jobSources: jobSources.map(s => s.key),
-    coverLetters: {} as Record<string, string>,
-    currentGeneratingJobId: null as string | null
-  })
+  const [currentStep, setCurrentStep] = useState<Step>('upload');
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [jobTitle, setJobTitle] = useState('');
+  const [location, setLocation] = useState('');
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
+  const [coverLetters, setCoverLetters] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  
+  // Automatically extract job title from resume once uploaded
+  useEffect(() => {
+    if (resume && resume.latestRole && resume.latestRole.title) {
+      setJobTitle(resume.latestRole.title);
+    }
+  }, [resume]);
   
   const handleUploadSuccess = (resumeData: Resume) => {
-    setState(prev => ({
-      ...prev,
-      currentStep: 'search',
-      resume: resumeData,
-      // If we have a latest role from the resume, use it as the initial job title
-      jobTitle: resumeData.latest_role || ''
-    }))
-  }
+    setResume(resumeData);
+    setCurrentStep('search');
+  };
   
   const handleSearch = async (title: string, location: string, sources: string[]) => {
-    setState(prev => ({
-      ...prev,
-      isSearching: true,
-      currentStep: 'loading'
-    }))
-    
     try {
-      // Make sure we have a resume ID
-      if (!state.resume?.id) {
-        throw new Error('Resume not found')
-      }
+      setError(null);
+      setIsSearching(true);
+      setCurrentStep('loading');
+      setJobTitle(title);
+      setLocation(location);
+      setSelectedSources(sources);
       
-      const jobs = await searchJobs(title, location, sources, state.resume.id)
+      // Get jobs
+      const results = await jobSearchService.searchJobs(
+        title, 
+        location, 
+        sources,
+        resume?.id
+      );
       
-      // Short delay to ensure loading animation is visible
-      setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          currentStep: 'results',
-          jobTitle: title,
-          location: location,
-          jobSources: sources,
-          jobs,
-          isSearching: false
-        }))
-      }, 1500)
-    } catch (error) {
-      console.error('Search error:', error)
-      setState(prev => ({
-        ...prev,
-        error: 'Failed to search for jobs. Please try again.',
-        isSearching: false,
-        currentStep: 'search'
-      }))
+      setJobs(results);
+      setCurrentStep('results');
+    } catch (err) {
+      console.error('Error searching jobs:', err);
+      setError('Failed to search for jobs. Please try again.');
+      setCurrentStep('search');
+    } finally {
+      setIsSearching(false);
     }
-  }
+  };
   
   const handleSearchAgain = () => {
-    setState(prev => ({
-      ...prev,
-      currentStep: 'search'
-    }))
-  }
+    setCurrentStep('search');
+  };
   
   const handleGenerateCoverLetter = async (jobId: string) => {
-    if (!state.resume?.id) return
-    
-    setState(prev => ({
-      ...prev,
-      currentGeneratingJobId: jobId
-    }))
+    if (!resume || !resume.id) {
+      setError('Resume information is missing. Please upload your resume again.');
+      return;
+    }
     
     try {
-      const coverLetter = await generateCoverLetter(jobId, state.resume.id)
+      setIsGeneratingCoverLetter(true);
       
-      setState(prev => ({
-        ...prev, 
-        coverLetters: {
-          ...prev.coverLetters,
-          [jobId]: coverLetter.file_path
-        },
-        currentGeneratingJobId: null
-      }))
-    } catch (error) {
-      console.error('Cover letter generation error:', error)
-      setState(prev => ({
+      // Generate cover letter
+      const coverLetter = await coverLetterService.generateCoverLetter(
+        jobId,
+        resume.id
+      );
+      
+      // Update coverLetters state
+      setCoverLetters(prev => ({
         ...prev,
-        currentGeneratingJobId: null
-      }))
+        [jobId]: coverLetter.file_path
+      }));
+    } catch (err) {
+      console.error('Error generating cover letter:', err);
+      setError('Failed to generate cover letter. Please try again.');
+    } finally {
+      setIsGeneratingCoverLetter(false);
     }
-  }
+  };
+  
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'upload':
+        return (
+          <UploadComponent 
+            onUploadSuccess={handleUploadSuccess} 
+          />
+        );
+        
+      case 'search':
+        return (
+          <SearchComponent 
+            jobSources={jobSources}
+            jobTitle={jobTitle}
+            location={location}
+            onSearch={handleSearch}
+            isSearching={isSearching}
+          />
+        );
+        
+      case 'loading':
+        return <LoadingComponent />;
+        
+      case 'results':
+        return (
+          <ResultsComponent 
+            jobs={jobs}
+            onSearchAgain={handleSearchAgain}
+            onGenerateCoverLetter={handleGenerateCoverLetter}
+            isGeneratingCoverLetter={isGeneratingCoverLetter}
+            coverLetters={coverLetters}
+          />
+        );
+        
+      default:
+        return null;
+    }
+  };
   
   return (
-    <div className="container max-w-7xl mx-auto py-6 px-4 md:px-6">
-      <div className="grid md:grid-cols-12 gap-6">
-        {/* Sidebar for app info + control panel */}
-        <div className="md:col-span-4 lg:col-span-3">
-          <Card className="sticky top-6">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">LinkedUp</CardTitle>
-              <CardDescription>AI-powered job search tool</CardDescription>
-            </CardHeader>
-            <CardContent className="pb-6">
-              <div className="space-y-4">
-                <p>Simplify your job search with smart matching and personalized cover letters.</p>
-                
-                <div>
-                  <h3 className="font-medium mb-2">How it works</h3>
-                  <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                    <li className={state.currentStep === 'upload' ? 'text-primary font-medium' : ''}>
-                      Upload your resume
-                    </li>
-                    <li className={state.currentStep === 'search' ? 'text-primary font-medium' : ''}>
-                      Set your job preferences
-                    </li>
-                    <li className={state.currentStep === 'loading' ? 'text-primary font-medium' : ''}>
-                      Find matching opportunities
-                    </li>
-                    <li className={state.currentStep === 'results' ? 'text-primary font-medium' : ''}>
-                      Generate personalized cover letters
-                    </li>
-                  </ol>
-                </div>
-                
-                {state.resume && (
-                  <div className="bg-muted p-3 rounded-md">
-                    <h3 className="font-medium text-sm mb-1">Your Resume</h3>
-                    <p className="text-sm text-muted-foreground">{state.resume.name}</p>
-                    <p className="text-sm text-muted-foreground">{state.resume.latest_role}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+    <div className="container mx-auto px-4 py-8">
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
+      
+      {/* Application Progress Steps */}
+      <div className="mb-10">
+        <div className="flex items-center justify-center space-x-2 sm:space-x-4">
+          <div 
+            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium
+              ${currentStep === 'upload' ? 'bg-primary text-white' : 'bg-primary/20 text-primary'}
+            `}
+          >
+            1
+          </div>
+          <div 
+            className={`flex-1 h-1 max-w-[60px]
+              ${currentStep === 'upload' ? 'bg-gray-200' : 'bg-primary'}
+            `}
+          ></div>
+          <div 
+            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium
+              ${currentStep === 'search' ? 'bg-primary text-white' : 
+               ['loading', 'results'].includes(currentStep) ? 'bg-primary/20 text-primary' : 
+               'bg-gray-200 text-gray-500'}
+            `}
+          >
+            2
+          </div>
+          <div 
+            className={`flex-1 h-1 max-w-[60px]
+              ${['loading', 'results'].includes(currentStep) ? 'bg-primary' : 'bg-gray-200'}
+            `}
+          ></div>
+          <div 
+            className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium
+              ${currentStep === 'results' ? 'bg-primary text-white' : 
+               currentStep === 'loading' ? 'bg-primary text-white animate-pulse' : 
+               'bg-gray-200 text-gray-500'}
+            `}
+          >
+            3
+          </div>
         </div>
         
-        {/* Main content area */}
-        <div className="md:col-span-8 lg:col-span-9">
-          {state.currentStep === 'upload' && (
-            <UploadComponent onUploadSuccess={handleUploadSuccess} />
-          )}
-          
-          {state.currentStep === 'search' && (
-            <SearchComponent
-              jobSources={jobSources}
-              jobTitle={state.jobTitle}
-              location={state.location}
-              onSearch={handleSearch}
-              isSearching={state.isSearching}
-            />
-          )}
-          
-          {state.currentStep === 'loading' && (
-            <LoadingComponent />
-          )}
-          
-          {state.currentStep === 'results' && (
-            <ResultsComponent
-              jobs={state.jobs}
-              onSearchAgain={handleSearchAgain}
-              onGenerateCoverLetter={handleGenerateCoverLetter}
-              isGeneratingCoverLetter={state.currentGeneratingJobId !== null}
-              coverLetters={state.coverLetters}
-            />
-          )}
+        <div className="flex justify-center mt-2 text-sm font-medium text-gray-500">
+          <div className="w-1/3 text-center">Upload</div>
+          <div className="w-1/3 text-center">Search</div>
+          <div className="w-1/3 text-center">Results</div>
         </div>
       </div>
+      
+      {renderStepContent()}
     </div>
-  )
+  );
 }

@@ -1,86 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server';
+import jobSearchService from '@/services/jobSearchService';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const title = searchParams.get('title')
-    const location = searchParams.get('location')
-    const sourcesParam = searchParams.get('sources')
-    const resumeId = searchParams.get('resumeId')
+    const searchParams = req.nextUrl.searchParams;
+    const title = searchParams.get('title') || '';
+    const location = searchParams.get('location') || '';
+    const sources = searchParams.get('sources')?.split(',') || [];
+    const resumeId = searchParams.get('resumeId') || undefined;
     
-    // Parse sources from comma-separated string if provided
-    const sources = sourcesParam ? sourcesParam.split(',') : null
+    const jobs = await jobSearchService.searchJobs(title, location, sources, resumeId);
     
-    // Build the query
-    let query = supabase
-      .from('jobs')
-      .select('*')
-    
-    // Apply filters
-    if (title) {
-      query = query.ilike('title', `%${title}%`)
-    }
-    
-    if (location) {
-      query = query.ilike('location', `%${location}%`)
-    }
-    
-    if (sources && sources.length > 0) {
-      query = query.in('source', sources)
-    }
-    
-    // Execute the query
-    const { data, error } = await query
-    
-    if (error) {
-      console.error('Error fetching jobs:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch jobs' },
-        { status: 500 }
-      )
-    }
-    
-    // If a resumeId is provided, we should update the job records
-    // to associate them with this resume, but for the demo we'll skip this
-    
-    return NextResponse.json(data || [])
-    
+    return NextResponse.json(jobs);
   } catch (error) {
-    console.error('Jobs API error:', error)
+    console.error('Error searching for jobs:', error);
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: error instanceof Error ? error.message : 'Failed to search for jobs' },
       { status: 500 }
-    )
+    );
   }
 }
 
-// Handle job creation (for demo or testing purposes)
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
+    const { jobId, resumeId } = await req.json();
     
-    const { data, error } = await supabase
-      .from('jobs')
-      .insert(body)
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Error creating job:', error)
+    if (!jobId || !resumeId) {
       return NextResponse.json(
-        { error: 'Failed to create job' },
-        { status: 500 }
-      )
+        { error: 'Job ID and Resume ID are required' },
+        { status: 400 }
+      );
     }
     
-    return NextResponse.json(data)
-    
+    // This route can be used to track applications or perform other job-related actions
+    // For now, we'll just return success
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Job creation error:', error)
+    console.error('Error in job POST request:', error);
     return NextResponse.json(
-      { error: 'An unexpected error occurred' },
+      { error: error instanceof Error ? error.message : 'Failed to process job request' },
       { status: 500 }
-    )
+    );
   }
 }

@@ -1,6 +1,7 @@
-import { users, resumes, jobs, jobSources, coverLetters, type User, type InsertUser, type Resume, type InsertResume, type Job, type InsertJob, type JobSource, type CoverLetter, type InsertCoverLetter } from "@shared/schema";
+import { users, resumes, experiences, jobSources, jobListings, coverLetters, emailDrafts, applications, type User, type InsertUser, type Resume, type InsertResume, type Experience, type InsertExperience, type JobSource, type InsertJobSource, type JobListing, type InsertJobListing, type CoverLetter, type InsertCoverLetter } from "../shared/schema";
 import { db } from "./db";
-import { eq, like, ilike, and, or, inArray } from "drizzle-orm";
+import { eq, like, ilike, and, or, inArray, desc } from "drizzle-orm";
+import crypto from "crypto";
 
 export interface IStorage {
   // User methods
@@ -10,16 +11,27 @@ export interface IStorage {
   
   // Resume methods
   saveResume(resume: InsertResume): Promise<Resume>;
-  getResumeByUserId(userId: number | null): Promise<Resume | undefined>;
+  getResumeById(id: string): Promise<Resume | undefined>;
+  getLatestResume(): Promise<Resume | undefined>;
+  
+  // Experience methods
+  saveExperience(experience: InsertExperience): Promise<Experience>;
+  getExperiencesByResumeId(resumeId: string): Promise<Experience[]>;
   
   // Job methods
-  saveJob(job: InsertJob): Promise<Job>;
-  getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]>;
-  getJobById(id: number): Promise<Job | undefined>;
+  saveJobListing(job: InsertJobListing): Promise<JobListing>;
+  getJobListings(jobTitle?: string, location?: string, sources?: string[]): Promise<JobListing[]>;
+  getJobListingById(id: string): Promise<JobListing | undefined>;
   
   // Job source methods
   getJobSources(): Promise<JobSource[]>;
   toggleJobSource(id: number, enabled: boolean): Promise<JobSource>;
+  
+  // Cover letter methods
+  saveCoverLetter(coverLetter: InsertCoverLetter): Promise<CoverLetter>;
+  getCoverLetterById(id: string): Promise<CoverLetter | undefined>;
+  getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]>;
+  getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined>;
 }
 
 // Database storage implementation
@@ -46,46 +58,57 @@ export class DatabaseStorage implements IStorage {
     return resume;
   }
 
-  async getResumeByUserId(userId: number | null): Promise<Resume | undefined> {
-    if (userId) {
-      const [resume] = await db.select().from(resumes).where(eq(resumes.userId, userId)).orderBy(resumes.id).limit(1);
-      return resume;
-    }
-    // If no userId provided, return the most recent resume
-    const [resume] = await db.select().from(resumes).orderBy(resumes.id).limit(1);
+  async getResumeById(id: string): Promise<Resume | undefined> {
+    const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
     return resume;
   }
   
+  async getLatestResume(): Promise<Resume | undefined> {
+    // Return the most recent resume
+    const [resume] = await db.select().from(resumes).orderBy(desc(resumes.createdAt)).limit(1);
+    return resume;
+  }
+  
+  // Experience methods
+  async saveExperience(insertExperience: InsertExperience): Promise<Experience> {
+    const [experience] = await db.insert(experiences).values(insertExperience).returning();
+    return experience;
+  }
+  
+  async getExperiencesByResumeId(resumeId: string): Promise<Experience[]> {
+    return await db.select().from(experiences).where(eq(experiences.resumeId, resumeId));
+  }
+  
   // Job methods
-  async saveJob(insertJob: InsertJob): Promise<Job> {
-    const [job] = await db.insert(jobs).values(insertJob).returning();
+  async saveJobListing(insertJobListing: InsertJobListing): Promise<JobListing> {
+    const [job] = await db.insert(jobListings).values(insertJobListing).returning();
     return job;
   }
 
-  async getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]> {
+  async getJobListings(jobTitle?: string, location?: string, sources?: string[]): Promise<JobListing[]> {
     let conditions = [];
     
     if (jobTitle) {
-      conditions.push(ilike(jobs.title, `%${jobTitle}%`));
+      conditions.push(ilike(jobListings.title, `%${jobTitle}%`));
     }
     
-    if (location) {
-      conditions.push(ilike(jobs.location, `%${location}%`));
+    if (location && location.trim() !== "") {
+      conditions.push(ilike(jobListings.location, `%${location}%`));
     }
     
     if (sources && sources.length > 0) {
-      conditions.push(inArray(jobs.source, sources));
+      conditions.push(inArray(jobListings.source, sources));
     }
     
     if (conditions.length > 0) {
-      return await db.select().from(jobs).where(and(...conditions));
+      return await db.select().from(jobListings).where(and(...conditions));
     }
     
-    return await db.select().from(jobs);
+    return await db.select().from(jobListings);
   }
 
-  async getJobById(id: number): Promise<Job | undefined> {
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
+  async getJobListingById(id: string): Promise<JobListing | undefined> {
+    const [job] = await db.select().from(jobListings).where(eq(jobListings.id, id));
     return job;
   }
   
@@ -107,26 +130,46 @@ export class DatabaseStorage implements IStorage {
     
     return updatedSource;
   }
+  
+  // Cover letter methods
+  async saveCoverLetter(insertCoverLetter: InsertCoverLetter): Promise<CoverLetter> {
+    const [coverLetter] = await db.insert(coverLetters).values(insertCoverLetter).returning();
+    return coverLetter;
+  }
+  
+  async getCoverLetterById(id: string): Promise<CoverLetter | undefined> {
+    const [coverLetter] = await db.select().from(coverLetters).where(eq(coverLetters.id, id));
+    return coverLetter;
+  }
+  
+  async getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]> {
+    return await db.select().from(coverLetters).where(eq(coverLetters.resumeId, resumeId));
+  }
+  
+  async getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined> {
+    const [coverLetter] = await db.select().from(coverLetters).where(eq(coverLetters.jobId, jobId));
+    return coverLetter;
+  }
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private resumes: Map<number, Resume>;
-  private jobs: Map<number, Job>;
+  private resumes: Map<string, Resume>;
+  private experiences: Map<string, Experience[]>;
+  private jobListings: Map<string, JobListing>;
   private jobSources: Map<number, JobSource>;
+  private coverLetters: Map<string, CoverLetter>;
   private userIdCounter: number;
-  private resumeIdCounter: number;
-  private jobIdCounter: number;
   private jobSourceIdCounter: number;
 
   constructor() {
     this.users = new Map();
     this.resumes = new Map();
-    this.jobs = new Map();
+    this.experiences = new Map();
+    this.jobListings = new Map();
     this.jobSources = new Map();
+    this.coverLetters = new Map();
     this.userIdCounter = 1;
-    this.resumeIdCounter = 1;
-    this.jobIdCounter = 1;
     this.jobSourceIdCounter = 1;
     
     // Initialize with some sample job sources
@@ -156,41 +199,79 @@ export class MemStorage implements IStorage {
   
   // Resume methods
   async saveResume(insertResume: InsertResume): Promise<Resume> {
-    const id = this.resumeIdCounter++;
+    const id = crypto.randomUUID();
+    const now = new Date();
+    
     const resume: Resume = { 
-      ...insertResume, 
+      ...insertResume,
       id,
-      userId: insertResume.userId || null,
-      content: insertResume.content || null
+      createdAt: now,
+      updatedAt: now
     };
+    
     this.resumes.set(id, resume);
     return resume;
   }
   
-  async getResumeByUserId(userId: number | null): Promise<Resume | undefined> {
-    return Array.from(this.resumes.values()).find(
-      (resume) => resume.userId === userId
-    );
+  async getResumeById(id: string): Promise<Resume | undefined> {
+    return this.resumes.get(id);
+  }
+  
+  async getLatestResume(): Promise<Resume | undefined> {
+    const resumes = Array.from(this.resumes.values());
+    if (resumes.length === 0) return undefined;
+    
+    // Sort by created date descending
+    return resumes.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
+    })[0];
+  }
+  
+  // Experience methods
+  async saveExperience(insertExperience: InsertExperience): Promise<Experience> {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    
+    const experience: Experience = {
+      ...insertExperience,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    const resumeId = experience.resumeId;
+    if (!this.experiences.has(resumeId)) {
+      this.experiences.set(resumeId, []);
+    }
+    
+    this.experiences.get(resumeId)?.push(experience);
+    return experience;
+  }
+  
+  async getExperiencesByResumeId(resumeId: string): Promise<Experience[]> {
+    return this.experiences.get(resumeId) || [];
   }
   
   // Job methods
-  async saveJob(insertJob: InsertJob): Promise<Job> {
-    const id = this.jobIdCounter++;
-    const job: Job = {
-      ...insertJob,
+  async saveJobListing(insertJobListing: InsertJobListing): Promise<JobListing> {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    
+    const job: JobListing = {
+      ...insertJobListing,
       id,
-      salary: insertJob.salary || null,
-      matchScore: insertJob.matchScore || null,
-      applyUrl: insertJob.applyUrl || null,
-      logo: insertJob.logo || null,
-      source: insertJob.source || null
+      createdAt: now,
+      updatedAt: now
     };
-    this.jobs.set(id, job);
+    
+    this.jobListings.set(id, job);
     return job;
   }
   
-  async getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]> {
-    let filteredJobs = Array.from(this.jobs.values());
+  async getJobListings(jobTitle?: string, location?: string, sources?: string[]): Promise<JobListing[]> {
+    let filteredJobs = Array.from(this.jobListings.values());
     
     if (jobTitle) {
       const titleLower = jobTitle.toLowerCase();
@@ -199,10 +280,10 @@ export class MemStorage implements IStorage {
       );
     }
     
-    if (location) {
+    if (location && location.trim() !== "") {
       const locationLower = location.toLowerCase();
       filteredJobs = filteredJobs.filter(job => 
-        job.location.toLowerCase().includes(locationLower)
+        job.location && job.location.toLowerCase().includes(locationLower)
       );
     }
     
@@ -215,8 +296,8 @@ export class MemStorage implements IStorage {
     return filteredJobs;
   }
   
-  async getJobById(id: number): Promise<Job | undefined> {
-    return this.jobs.get(id);
+  async getJobListingById(id: string): Promise<JobListing | undefined> {
+    return this.jobListings.get(id);
   }
   
   // Job source methods
@@ -233,6 +314,38 @@ export class MemStorage implements IStorage {
     const updatedJobSource = { ...jobSource, enabled };
     this.jobSources.set(id, updatedJobSource);
     return updatedJobSource;
+  }
+  
+  // Cover letter methods
+  async saveCoverLetter(insertCoverLetter: InsertCoverLetter): Promise<CoverLetter> {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    
+    const coverLetter: CoverLetter = {
+      ...insertCoverLetter,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    this.coverLetters.set(id, coverLetter);
+    return coverLetter;
+  }
+  
+  async getCoverLetterById(id: string): Promise<CoverLetter | undefined> {
+    return this.coverLetters.get(id);
+  }
+  
+  async getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]> {
+    return Array.from(this.coverLetters.values()).filter(
+      coverLetter => coverLetter.resumeId === resumeId
+    );
+  }
+  
+  async getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined> {
+    return Array.from(this.coverLetters.values()).find(
+      coverLetter => coverLetter.jobId === jobId
+    );
   }
   
   // Initialize with sample job sources
@@ -252,84 +365,61 @@ export class MemStorage implements IStorage {
 
   // Initialize with sample jobs
   private initializeJobs() {
-    const sampleJobs: InsertJob[] = [
+    const defaultResumeId = crypto.randomUUID();
+    const sampleJobs: InsertJobListing[] = [
       {
+        resumeId: defaultResumeId,
         title: "Frontend Developer",
         company: "TechFlow",
         location: "San Francisco, CA",
         description: "We're looking for a skilled Frontend Developer to join our growing team. You'll be responsible for building beautiful, responsive user interfaces using React and modern JavaScript.",
+        requirements: ["React", "TypeScript", "CSS"],
+        url: "https://example.com/apply",
+        source: "linkedin",
+        postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         salary: "$110,000 - $140,000",
-        matchScore: 92,
-        postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=TF",
-        source: "linkedin"
+        hiringManagerName: "Jane Smith",
+        hiringManagerEmail: "jane@techflow.com",
+        hiringManagerTitle: "Engineering Manager",
+        processed: false
       },
       {
+        resumeId: defaultResumeId,
         title: "Senior React Developer",
         company: "InnovateCorp",
         location: "New York, NY",
         description: "InnovateCorp is seeking an experienced React Developer to help build our next-generation web applications. You should have 4+ years of experience with React and deep knowledge of state management solutions.",
+        requirements: ["React", "Redux", "Node.js"],
+        url: "https://example.com/apply",
+        source: "indeed",
+        postedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
         salary: "$130,000 - $160,000",
-        matchScore: 88,
-        postedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=IC",
-        source: "indeed"
+        hiringManagerName: "John Doe",
+        hiringManagerEmail: "john@innovatecorp.com",
+        hiringManagerTitle: "CTO",
+        processed: false
       },
       {
+        resumeId: defaultResumeId,
         title: "Full Stack Developer",
         company: "GrowthLabs",
         location: "Remote",
         description: "Join our 100% remote team as a Full Stack Developer. We're building cutting-edge tools for startups. You should be comfortable with React, Node.js, and have experience with cloud services (AWS or GCP).",
+        requirements: ["React", "Node.js", "AWS"],
+        url: "https://example.com/apply",
+        source: "linkedin",
+        postedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
         salary: "$120,000 - $150,000",
-        matchScore: 85,
-        postedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=GL",
-        source: "linkedin"
-      },
-      {
-        title: "UI/UX Developer",
-        company: "DesignFlex",
-        location: "Austin, TX",
-        description: "DesignFlex is looking for a UI/UX Developer who can combine beautiful designs with functional code. You should have a strong portfolio showing your design skills and coding abilities.",
-        salary: "$95,000 - $120,000",
-        matchScore: 78,
-        postedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=DF",
-        source: "linkedin"
-      },
-      {
-        title: "JavaScript Engineer",
-        company: "CodeNova",
-        location: "Seattle, WA",
-        description: "We're building the next generation of developer tools and need a talented JavaScript Engineer. Experience with compiler theory, ASTs, or static analysis tools is a plus but not required.",
-        salary: "$125,000 - $155,000",
-        matchScore: 90,
-        postedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=CN",
-        source: "indeed"
-      },
-      {
-        title: "Frontend Architect",
-        company: "ScaleUp",
-        location: "Boston, MA",
-        description: "ScaleUp is searching for a Frontend Architect to lead our UI engineering efforts. You'll set technical direction, establish best practices, and mentor junior developers while working on complex UI challenges.",
-        salary: "$150,000 - $180,000",
-        matchScore: 82,
-        postedDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
-        applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=SU",
-        source: "glassdoor"
+        hiringManagerName: "Sarah Johnson",
+        hiringManagerEmail: "sarah@growthlabs.com",
+        hiringManagerTitle: "Head of Engineering",
+        processed: false
       }
     ];
     
     // Add sample jobs to storage
     sampleJobs.forEach(job => {
-      this.saveJob(job);
+      this.saveJobListing(job);
     });
   }
 }

@@ -1,0 +1,139 @@
+import { Experience, Resume } from '../models/Resume';
+import Anthropic from '@anthropic-ai/sdk';
+import pdfParse from 'pdf-parse';
+
+/**
+ * Service for parsing resume PDFs into structured data
+ */
+export class ResumeParser {
+  private anthropic: Anthropic;
+
+  constructor() {
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+    });
+  }
+
+  /**
+   * Parse a resume PDF file into structured data
+   */
+  async parseResume(fileBuffer: Buffer): Promise<Resume> {
+    try {
+      // Parse PDF text content
+      const pdfData = await pdfParse(fileBuffer);
+      const text = pdfData.text;
+
+      console.log("Extracted text length:", text.length);
+      console.log("Text sample:", text.substring(0, 200));
+
+      // Use Claude to extract structured data
+      // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
+      const message = await this.anthropic.messages.create({
+        model: 'claude-3-7-sonnet-20250219',
+        max_tokens: 4000,
+        system: `You are an AI assistant specializing in parsing resume content into structured data. Extract the information and return it as JSON.`,
+        messages: [
+          {
+            role: 'user',
+            content: `Parse the following resume text into structured JSON format:
+
+${text.substring(0, 12000)}
+
+Return a JSON object with the following structure:
+{
+  "name": "Full Name",
+  "email": "email@example.com",
+  "phone": "phone number",
+  "skills": ["skill1", "skill2", ...],
+  "experiences": [
+    {
+      "title": "Job Title",
+      "company": "Company Name",
+      "startDate": "YYYY-MM",
+      "endDate": "YYYY-MM",
+      "description": "Job description"
+    },
+    ...
+  ]
+}
+
+Order experiences with the most recent first. Include only the information that's clearly present in the resume. Don't make up or assume any information. Return only the JSON without additional explanation or markdown code blocks.`
+          }
+        ],
+        temperature: 0,
+      });
+
+      // Extract and parse the JSON response
+      let content = message.content[0];
+      let responseText = '';
+
+      if (typeof content === 'object' && 'text' in content) {
+        responseText = content.text;
+      } else if (typeof content === 'string') {
+        responseText = content;
+      } else {
+        responseText = JSON.stringify(content);
+      }
+
+      console.log("Claude response:", responseText.substring(0, 200));
+
+      // Remove markdown code block markers if present
+      responseText = responseText.replace(/^```json\s+/, '').replace(/\s+```$/, '');
+      responseText = responseText.replace(/^```\s+/, '').replace(/\s+```$/, '');
+
+      // Parse the JSON
+      let resumeData;
+      try {
+        // Try to parse the entire response as JSON
+        resumeData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse JSON directly:", parseError);
+
+        // If that fails, try to extract JSON from the response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            resumeData = JSON.parse(jsonMatch[0]);
+          } catch (extractError) {
+            console.error("Failed to parse extracted JSON:", extractError);
+            throw new Error('Could not parse resume data from response');
+          }
+        } else {
+          throw new Error('Could not find JSON in the response');
+        }
+      }
+
+      console.log("Parsed resume data:", JSON.stringify(resumeData).substring(0, 200));
+
+      // Validate and normalize the data
+      const experiences = (resumeData.experiences || []).map((exp: any) => ({
+        title: exp.title || '',
+        company: exp.company || '',
+        startDate: exp.startDate || '',
+        endDate: exp.endDate === 'present' ? undefined : exp.endDate,
+        description: exp.description || ''
+      }));
+
+      const resume: Resume = {
+        name: resumeData.name || 'Unknown',
+        email: resumeData.email || '',
+        phone: resumeData.phone || '',
+        skills: resumeData.skills || [],
+        experiences: experiences,
+        latestRole: experiences[0] || {
+          title: '',
+          company: '',
+          startDate: ''
+        }
+      };
+
+      return resume;
+    } catch (error: any) {
+      console.error('Error parsing resume:', error);
+      throw new Error(`Failed to parse resume: ${error.message}`);
+    }
+  }
+}
+
+// Export a singleton instance
+export default new ResumeParser();

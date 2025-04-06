@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertResumeSchema, insertJobSchema, insertJobSourceSchema } from "@shared/schema";
+import { insertResumeSchema, insertJobListingSchema as insertJobSchema, insertJobSourceSchema } from "../shared/schema";
 import { z } from "zod";
 
 // Configure multer for file uploads
@@ -46,15 +46,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract file information
       const { filename, originalname, mimetype, size } = req.file;
       
-      // Save resume info to storage
+      // Normally we would parse the resume here using a service like Claude or GPT
+      // For this demo, we'll just use sample data
       const resume = {
-        userId: null, // No authentication in this demo
-        filename,
-        originalname,
-        mimetype,
-        size,
-        uploadedAt: new Date().toISOString(),
-        content: "", // In a real app, we'd parse the resume content here
+        name: "John Doe",
+        email: "john.doe@example.com",
+        phone: "555-123-4567",
+        filePath: `/uploads/${filename}`,
+        latestRole: "Senior Developer",
+        skills: ["JavaScript", "React", "Node.js", "TypeScript"]
       };
 
       // Validate the resume data
@@ -65,12 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(200).json({
         message: "Resume uploaded successfully",
-        resume: {
-          filename,
-          originalname,
-          mimetype,
-          size,
-        },
+        resume: savedResume
       });
     } catch (error) {
       console.error("Resume upload error:", error);
@@ -93,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Get jobs from storage
-      const jobs = await storage.getJobs(jobTitle, location, sources);
+      const jobs = await storage.getJobListings(jobTitle, location, sources);
       
       res.status(200).json({ jobs });
     } catch (error) {
@@ -105,8 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get job details endpoint
   app.get("/api/jobs/:id", async (req, res) => {
     try {
-      const jobId = parseInt(req.params.id);
-      const job = await storage.getJobById(jobId);
+      const jobId = req.params.id;
+      const job = await storage.getJobListingById(jobId);
       
       if (!job) {
         return res.status(404).json({ error: "Job not found" });
@@ -157,22 +152,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Resume ID and Job ID are required" });
       }
       
-      // In a real app, we'd generate a cover letter using the resume and job data
-      // For this demo, we'll just return a mock response
+      // In a real app, we'd generate a cover letter using Claude or GPT
+      // and the resume/job details
       
-      // Short timeout to simulate processing
+      // Get resume and job details
+      const resume = await storage.getResumeById(resumeId);
+      const job = await storage.getJobListingById(jobId);
+      
+      if (!resume || !job) {
+        return res.status(404).json({ 
+          error: !resume ? "Resume not found" : "Job not found" 
+        });
+      }
+      
+      // Short timeout to simulate AI processing
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      res.status(200).json({
-        coverLetter: {
-          id: Math.floor(Math.random() * 10000),
-          resumeId,
-          jobId,
-          content: "Dear Hiring Manager,\n\nI am writing to express my interest in the position at your company. With my skills and experience, I believe I would be a great fit for this role.\n\nSincerely,\nYour Name",
-          filePath: "/coverletter-12345.pdf",
-          createdAt: new Date().toISOString(),
-        }
-      });
+      // Insert cover letter into storage
+      const coverLetterData = {
+        resumeId,
+        jobId,
+        content: `Dear Hiring Manager at ${job.company},\n\nI am writing to express my interest in the ${job.title} position. With my background as a ${resume.latestRole} and skills in ${resume.skills.join(", ")}, I believe I would be a great fit for this role.\n\nI am particularly drawn to ${job.company} because of its innovative approach to solving challenges in the industry. The ${job.title} role aligns perfectly with my career goals and expertise.\n\nI look forward to discussing how my skills and experience can benefit your team.\n\nSincerely,\n${resume.name}`,
+        filePath: `/cover-letters/${resumeId}-${jobId}.pdf`
+      };
+      
+      const coverLetter = await storage.saveCoverLetter(coverLetterData);
+      
+      res.status(200).json({ coverLetter });
     } catch (error) {
       console.error("Generate cover letter error:", error);
       res.status(500).json({ error: "Failed to generate cover letter" });

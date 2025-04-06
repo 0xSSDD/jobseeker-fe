@@ -1,81 +1,83 @@
-import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { FiSearch, FiBriefcase, FiCheckCircle, FiServer } from 'react-icons/fi';
 
 export function LoadingComponent() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold">Finding Your Perfect Match</h2>
-        <p className="text-muted-foreground mt-2">
-          Searching across job platforms for relevant opportunities
+    <div className="w-full max-w-lg mx-auto py-8">
+      <div className="mb-8 text-center">
+        <h2 className="text-2xl font-bold mb-2">Finding Your Perfect Matches</h2>
+        <p className="text-gray-600">
+          We're searching across multiple job platforms to find positions that match your skills and experience.
         </p>
       </div>
       
-      <Card className="w-full">
-        <CardContent className="pt-6 pb-6">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Searching LinkedIn</span>
-                <span className="text-sm text-muted-foreground">75%</span>
-              </div>
-              <Progress value={75} className="h-2" />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Searching Indeed</span>
-                <span className="text-sm text-muted-foreground">90%</span>
-              </div>
-              <Progress value={90} className="h-2" />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Searching Glassdoor</span>
-                <span className="text-sm text-muted-foreground">45%</span>
-              </div>
-              <Progress value={45} className="h-2" />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Searching ZipRecruiter</span>
-                <span className="text-sm text-muted-foreground">60%</span>
-              </div>
-              <Progress value={60} className="h-2" />
-            </div>
-            
-            <div className="text-center pt-4">
-              <p className="text-sm text-muted-foreground animate-pulse">Analyzing job descriptions and matching to your resume...</p>
-            </div>
+      <div className="space-y-6">
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white">
+            <FiSearch className="text-lg" />
           </div>
-        </CardContent>
-      </Card>
-      
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <JobSkeleton key={i} />
-        ))}
+          <div className="ml-4 flex-1">
+            <div className="h-2 bg-primary rounded-full mb-2 animate-pulse"></div>
+            <div className="h-2 bg-gray-200 rounded-full w-3/4"></div>
+          </div>
+        </div>
+        
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20 text-primary">
+            <FiBriefcase className="text-lg" />
+          </div>
+          <div className="ml-4 flex-1">
+            <div className="h-2 bg-gray-200 rounded-full mb-2"></div>
+            <div className="h-2 bg-gray-200 rounded-full w-3/4"></div>
+          </div>
+        </div>
+        
+        <div className="flex items-center">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20 text-primary">
+            <FiCheckCircle className="text-lg" />
+          </div>
+          <div className="ml-4 flex-1">
+            <div className="h-2 bg-gray-200 rounded-full mb-2"></div>
+            <div className="h-2 bg-gray-200 rounded-full w-3/4"></div>
+          </div>
+        </div>
+        
+        <div className="py-6">
+          <div className="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full w-2/3 animate-pulse"></div>
+          </div>
+          <div className="mt-2 text-sm text-gray-500 text-center">
+            Searching job platforms...
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <JobSkeleton />
+          <JobSkeleton />
+          <JobSkeleton />
+          <JobSkeleton />
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
 function JobSkeleton() {
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="space-y-3">
-          <div className="h-5 bg-muted rounded w-3/4 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-1/2 animate-pulse"></div>
-          <div className="pt-2">
-            <div className="h-3 bg-muted rounded w-full animate-pulse mb-2"></div>
-            <div className="h-3 bg-muted rounded w-full animate-pulse mb-2"></div>
-            <div className="h-3 bg-muted rounded w-2/3 animate-pulse"></div>
-          </div>
+    <div className="border rounded-lg p-4 animate-pulse">
+      <div className="flex items-center mb-3">
+        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+        <div className="ml-3">
+          <div className="h-2.5 bg-gray-200 rounded-full w-32 mb-2"></div>
+          <div className="h-2 bg-gray-200 rounded-full w-24"></div>
         </div>
-      </CardContent>
-    </Card>
-  )
+      </div>
+      <div className="h-2.5 bg-gray-200 rounded-full w-full mb-2.5"></div>
+      <div className="h-2 bg-gray-200 rounded-full mb-2.5"></div>
+      <div className="h-2 bg-gray-200 rounded-full w-3/4"></div>
+      <div className="flex items-center mt-4 justify-between">
+        <div className="h-3 bg-gray-200 rounded-full w-1/4"></div>
+        <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+      </div>
+    </div>
+  );
 }
