@@ -2,10 +2,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, type InsertResume, type InsertJobListing, type InsertJobSource, type InsertCoverLetter } from "./storage";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { z } from "zod";
-import { supabase, supabaseAdmin } from "./supabase";
+import {supabaseAdmin } from "./supabase";
+import { parseResume, findJobInfo } from "./services/resumeParser";
 
 // Define schemas for validation
 const insertResumeSchema = z.object({
@@ -129,33 +128,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[PROCESS] Processing resume:", resume.filename);
 
-      // In a real app, you would:
-      // 1. Get the file from storage
-      // 2. Use an AI service to parse it
-      // 3. Update the resume record with parsed data
+      // Download file from Supabase using supabaseAdmin
+      const { data, error } = await supabaseAdmin
+        .storage
+        .from('resumes') // Assuming 'resumes' is your bucket name
+        .download(resume.storage_path);
 
-      // For this demo, using sample data as before
-      const parsedSkills = ["JavaScript", "React", "Node.js", "TypeScript"];
+      if (error || !data) {
+        console.error('[PROCESS] Error downloading file:', error);
+        return res.status(404).json({ error: "File not found in storage" });
+      }
+
+      // Convert ArrayBuffer to Buffer
+      const buffer = Buffer.from(await data.arrayBuffer());
+      const parsedResume = await parseResume(buffer, resume.filename);
+
+      // Prepare data for storage
       const parsedContent = JSON.stringify({
-        name: "John Doe",
-        email: "john.doe@example.com",
-        phone: "555-123-4567",
-        latestRole: "Senior Developer",
-        skills: parsedSkills,
-        experiences: [
-          {
-            company: "Tech Company",
-            title: "Senior Developer",
-            startDate: "2020-01",
-            endDate: "Present",
-            description: "Led development of key features"
-          }
-        ]
+        name: parsedResume.name,
+        email: parsedResume.email,
+        phone: parsedResume.phone,
+        latestRole: parsedResume.latestRole,
+        skills: parsedResume.skills,
+        experiences: parsedResume.experiences
       });
 
       // Update the resume with parsed data
       const updatedResume = await storage.updateResume(fileId, {
-        skills: parsedSkills,
+        skills: parsedResume.skills,
         parsed_content: parsedContent
       });
 
@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({
         message: "Resume processed successfully",
         resume: updatedResume,
-        parsedData: JSON.parse(parsedContent)
+        parsedData: parsedResume
       });
     } catch (error) {
       console.error("Resume processing error:", error);
@@ -176,17 +176,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search jobs endpoint
   app.post("/api/jobs/search", async (req, res) => {
     try {
-      const { jobTitle, location, sources } = req.body;
+      const { resumeId, jobTitle, location, sources } = req.body;
 
-      // In a real application, this would use the resume content to match with jobs
-      // For this demo, we'll return mock job data that would normally be fetched from a job API
+      // If we have a resumeId, use that for intelligent job search
+      if (resumeId) {
+        // Get the resume
+        const resume = await storage.getResumeById(resumeId);
 
-      // Short timeout to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+        if (!resume || !resume.parsed_content) {
+          return res.status(400).json({ error: "Resume not found or not processed" });
+        }
 
-      // Get jobs from storage
+        // Parse the content
+        const parsedResume = JSON.parse(resume.parsed_content);
+
+        // Use MCP-based job search
+        const searchResults = await findJobInfo({
+          name: parsedResume.name,
+          email: parsedResume.email,
+          phone: parsedResume.phone,
+          skills: resume.skills || [],
+          experiences: parsedResume.experiences || [],
+          latestRole: parsedResume.latestRole
+        });
+
+        // Store the relevant jobs in our database
+        const jobs = await Promise.all(
+          searchResults.results.slice(0, 5).map(async (result: any) => {
+            // Create job listing from search result
+            const job = {
+              title: result.title || "Unknown Position",
+              company: result.company || "Unknown Company",
+              location: location || "Remote",
+              description: result.description || result.snippet || "",
+              requirements: resume.skills,
+              url: result.url,
+              source: "brave-search",
+              posted_date: new Date().toISOString(),
+              processed: false
+            };
+
+            // Store in database using saveJobListing
+            return await storage.saveJobListing(job);
+          })
+        );
+
+        return res.status(200).json({ jobs });
+      }
+
+      // Fallback to standard search
       const jobs = await storage.getJobListings(jobTitle, location, sources);
-
       res.status(200).json({ jobs });
     } catch (error) {
       console.error("Job search error:", error);

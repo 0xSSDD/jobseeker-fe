@@ -1,0 +1,21 @@
+{
+  "filesystem": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "."
+    ]
+  },
+  "brave-search": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@smithery/cli@latest",
+      "run",
+      "@smithery-ai/brave-search",
+      "--config",
+      "{\"braveApiKey\":\"BSAxriTXeHsV9YtAP1gvEhWHVzo6OnM\"}"
+    ]
+  }
+}
