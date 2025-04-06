@@ -6,7 +6,8 @@ enum ProcessState {
   UPLOADING = 'uploading',     // File is being uploaded to Supabase
   UPLOADED = 'uploaded',       // File uploaded, ready to process, show "Process CV"
   PROCESSING = 'processing',   // CV is being processed by AI
-  PROCESSED = 'processed'      // CV processed, show "Find Matching Jobs"
+  PROCESSED = 'processed',      // CV processed, show "Find Matching Jobs"
+  FAILED = 'failed'  // Add this new state
 }
 
 interface ResumeUploadProps {
@@ -99,7 +100,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
     } catch (error) {
       console.error("Error uploading resume:", error);
       setError("Failed to upload resume. Please try again.");
-      setProcessState(ProcessState.INITIAL);
+      setProcessState(ProcessState.FAILED);
     }
   };
 
@@ -135,7 +136,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
     } catch (error) {
       console.error("Error processing resume:", error);
       setError("Failed to process resume. Please try again.");
-      setProcessState(ProcessState.UPLOADED); // Go back to uploaded state
+      setProcessState(ProcessState.FAILED);
     }
   };
 
@@ -148,6 +149,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         }
         break;
       case ProcessState.UPLOADED:
+      case ProcessState.FAILED:
         // Process the uploaded resume
         processResume();
         break;
@@ -172,6 +174,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         return "Processing...";
       case ProcessState.PROCESSED:
         return "Find Matching Jobs";
+      case ProcessState.FAILED:
+        return "Try Processing Again";
       default:
         return "Upload CV";
     }
@@ -233,17 +237,17 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
       )}
 
       {/* Status messages */}
-      {processState === ProcessState.UPLOADED && (
+      {processState === ProcessState.UPLOADED && !error && (
         <div className="mb-4 p-4 bg-green-50 rounded-md">
           <h4 className="font-medium text-green-800">Resume Ready</h4>
           <p className="text-sm text-green-700">Your resume has been uploaded and is ready to be processed.</p>
         </div>
       )}
 
-      {processState === ProcessState.PROCESSED && (
-        <div className="mb-4 p-4 bg-green-50 rounded-md">
-          <h4 className="font-medium text-green-800">Resume Ready</h4>
-          <p className="text-sm text-green-700">Your resume has been processed and is ready to find matching jobs.</p>
+      {processState === ProcessState.FAILED && (
+        <div className="mb-4 p-4 bg-red-50 rounded-md">
+          <h4 className="font-medium text-red-800">Processing Failed</h4>
+          <p className="text-sm text-red-700">{error || "There was a problem processing your resume. Please try again."}</p>
         </div>
       )}
 

@@ -115,6 +115,14 @@ export class MCPClient {
       }
     }
   }
+
+  /**
+   * List available tools from an MCP server
+   */
+  static async listAvailableTools(serverName: string): Promise<void> {
+    const tools = await this.getTools(serverName);
+    console.log(`Available tools for ${serverName}:`, tools.map(t => t.name));
+  }
 }
 
 // Add cleanup on process exit

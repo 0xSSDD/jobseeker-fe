@@ -2,6 +2,7 @@ import { Anthropic } from '@anthropic-ai/sdk';
 import { MCPClient } from './mcp';
 import fs from 'fs';
 import path from 'path';
+import { PdfReader } from 'pdfreader';
 
 interface Experience {
   title: string;
@@ -41,29 +42,24 @@ export async function parseResume(fileBuffer: Buffer, fileName: string): Promise
     fs.writeFileSync(tempFilePath, fileBuffer);
     console.log(`[PARSE] Saved temp file: ${tempFilePath}`);
 
-    // 2. Read file using MCP filesystem tool
-    const fileContent = await MCPClient.executeToolCall(
-      'filesystem',
-      'readFile',
-      { filePath: tempFilePath }
-    );
-
-    console.log(`[PARSE] File content read successfully (${fileContent.length} bytes)`);
+    // 2. Extract text from PDF using pdfreader
+    const textContent = await extractTextFromPdf(fileBuffer);
+    console.log(`[PARSE] PDF text extracted successfully (${textContent.length} characters)`);
 
     // 3. Use Claude to parse the resume
     const anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY || ''
     });
-
+    // TODO: Optimise the prompt
     const message = await anthropic.messages.create({
-      model: "claude-3-sonnet-latest",
+      model: "claude-3-7-sonnet-latest",
       max_tokens: 4000,
       system: `Parse the resume text into structured JSON format with name, email, phone, skills, and experiences.`,
       messages: [
         {
           role: 'user',
           content: `Parse this resume text into JSON:
-${fileContent.substring(0, 12000)}
+${textContent.substring(0, 12000)}
 
 Return only JSON with this structure:
 {
@@ -125,6 +121,24 @@ Return only JSON with this structure:
     }
     throw new Error('Resume parsing failed: Unknown error');
   }
+}
+
+// New helper function to extract text from PDF using pdfreader
+function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const textItems: string[] = [];
+
+    new PdfReader().parseBuffer(pdfBuffer, (err, item) => {
+      if (err) {
+        reject(new Error(String(err)));
+      } else if (!item) {
+        // End of file, resolve with all collected text
+        resolve(textItems.join(' '));
+      } else if (item.text) {
+        textItems.push(item.text);
+      }
+    });
+  });
 }
 
 /**
