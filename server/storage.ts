@@ -1,7 +1,120 @@
-import { users, resumes, experiences, jobSources, jobListings, coverLetters, emailDrafts, applications, type User, type InsertUser, type Resume, type InsertResume, type Experience, type InsertExperience, type JobSource, type InsertJobSource, type JobListing, type InsertJobListing, type CoverLetter, type InsertCoverLetter } from "../shared/schema";
-import { db } from "./db";
-import { eq, like, ilike, and, or, inArray, desc } from "drizzle-orm";
-import crypto from "crypto";
+import { supabase } from './supabase';
+import crypto from 'crypto';
+import { z } from 'zod';
+
+// Type definitions to replace Drizzle's
+export interface User {
+  id: number;
+  username: string;
+  password: string;
+}
+
+export interface Resume {
+  id: string;
+  user_id: string | null;
+  filename: string;
+  storage_path: string;
+  uploaded_at: string;
+  parsed_content: string | null;
+  skills: string[] | null;
+}
+
+export interface Experience {
+  id: string;
+  resume_id: string;
+  title: string;
+  company: string;
+  start_date: string;
+  end_date: string | null;
+  description: string | null;
+}
+
+export interface JobSource {
+  id: string;
+  user_id: string | null;
+  source_name: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobListing {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  description: string;
+  requirements: string[] | null;
+  url: string;
+  source: string;
+  posted_date: string | null;
+  salary: string | null;
+  hiring_manager_name: string | null;
+  hiring_manager_email: string | null;
+  hiring_manager_title: string | null;
+  processed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CoverLetter {
+  id: string;
+  user_id: string | null;
+  job_id: string;
+  content: string;
+  created_at: string;
+}
+
+// Insert interfaces
+export interface InsertUser {
+  username: string;
+  password: string;
+}
+
+export interface InsertResume {
+  user_id?: string | null;
+  filename: string;
+  storage_path: string;
+  parsed_content?: string | null;
+  skills?: string[] | null;
+}
+
+export interface InsertExperience {
+  resume_id: string;
+  title: string;
+  company: string;
+  start_date: string;
+  end_date?: string | null;
+  description?: string | null;
+}
+
+export interface InsertJobSource {
+  user_id?: string | null;
+  source_name: string;
+  enabled?: boolean;
+}
+
+export interface InsertJobListing {
+  title: string;
+  company: string;
+  location?: string | null;
+  description: string;
+  requirements?: string[] | null;
+  url: string;
+  source?: string;
+  posted_date?: string | null;
+  salary?: string | null;
+  hiring_manager_name?: string | null;
+  hiring_manager_email?: string | null;
+  hiring_manager_title?: string | null;
+  processed?: boolean;
+}
+
+export interface InsertCoverLetter {
+  user_id?: string | null;
+  job_id: string;
+  content: string;
+}
 
 export interface IStorage {
   // User methods
@@ -34,121 +147,211 @@ export interface IStorage {
   getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined>;
 }
 
-// Database storage implementation
+// Database storage implementation using Supabase
 export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as User;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as User;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    const { data, error } = await supabase
+      .from('users')
+      .insert(insertUser)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as User;
   }
   
   // Resume methods
   async saveResume(insertResume: InsertResume): Promise<Resume> {
-    const [resume] = await db.insert(resumes).values(insertResume).returning();
-    return resume;
+    const { data, error } = await supabase
+      .from('resumes')
+      .insert(insertResume)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as Resume;
   }
 
   async getResumeById(id: string): Promise<Resume | undefined> {
-    const [resume] = await db.select().from(resumes).where(eq(resumes.id, id));
-    return resume;
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as Resume;
   }
   
   async getLatestResume(): Promise<Resume | undefined> {
-    // Return the most recent resume
-    const [resume] = await db.select().from(resumes).orderBy(desc(resumes.createdAt)).limit(1);
-    return resume;
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as Resume;
   }
   
   // Experience methods
   async saveExperience(insertExperience: InsertExperience): Promise<Experience> {
-    const [experience] = await db.insert(experiences).values(insertExperience).returning();
-    return experience;
+    const { data, error } = await supabase
+      .from('experiences')
+      .insert(insertExperience)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as Experience;
   }
   
   async getExperiencesByResumeId(resumeId: string): Promise<Experience[]> {
-    return await db.select().from(experiences).where(eq(experiences.resumeId, resumeId));
+    const { data, error } = await supabase
+      .from('experiences')
+      .select('*')
+      .eq('resume_id', resumeId);
+      
+    if (error) throw error;
+    return data as Experience[];
   }
   
   // Job methods
   async saveJobListing(insertJobListing: InsertJobListing): Promise<JobListing> {
-    const [job] = await db.insert(jobListings).values(insertJobListing).returning();
-    return job;
+    const { data, error } = await supabase
+      .from('job_listings')
+      .insert(insertJobListing)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as JobListing;
   }
 
   async getJobListings(jobTitle?: string, location?: string, sources?: string[]): Promise<JobListing[]> {
-    let conditions = [];
+    let query = supabase
+      .from('job_listings')
+      .select('*');
     
     if (jobTitle) {
-      conditions.push(ilike(jobListings.title, `%${jobTitle}%`));
+      query = query.ilike('title', `%${jobTitle}%`);
     }
     
     if (location && location.trim() !== "") {
-      conditions.push(ilike(jobListings.location, `%${location}%`));
+      query = query.ilike('location', `%${location}%`);
     }
     
     if (sources && sources.length > 0) {
-      conditions.push(inArray(jobListings.source, sources));
+      query = query.in('source', sources);
     }
     
-    if (conditions.length > 0) {
-      return await db.select().from(jobListings).where(and(...conditions));
-    }
-    
-    return await db.select().from(jobListings);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data as JobListing[];
   }
 
   async getJobListingById(id: string): Promise<JobListing | undefined> {
-    const [job] = await db.select().from(jobListings).where(eq(jobListings.id, id));
-    return job;
+    const { data, error } = await supabase
+      .from('job_listings')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as JobListing;
   }
   
   // Job source methods
   async getJobSources(): Promise<JobSource[]> {
-    return await db.select().from(jobSources);
+    const { data, error } = await supabase
+      .from('job_sources')
+      .select('*');
+      
+    if (error) throw error;
+    return data as JobSource[];
   }
 
   async toggleJobSource(id: number, enabled: boolean): Promise<JobSource> {
-    const [updatedSource] = await db
-      .update(jobSources)
-      .set({ enabled })
-      .where(eq(jobSources.id, id))
-      .returning();
-    
-    if (!updatedSource) {
+    const { data, error } = await supabase
+      .from('job_sources')
+      .update({ enabled })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error || !data) {
       throw new Error(`Job source with id ${id} not found`);
     }
     
-    return updatedSource;
+    return data as JobSource;
   }
   
   // Cover letter methods
   async saveCoverLetter(insertCoverLetter: InsertCoverLetter): Promise<CoverLetter> {
-    const [coverLetter] = await db.insert(coverLetters).values(insertCoverLetter).returning();
-    return coverLetter;
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .insert(insertCoverLetter)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as CoverLetter;
   }
   
   async getCoverLetterById(id: string): Promise<CoverLetter | undefined> {
-    const [coverLetter] = await db.select().from(coverLetters).where(eq(coverLetters.id, id));
-    return coverLetter;
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as CoverLetter;
   }
   
   async getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]> {
-    return await db.select().from(coverLetters).where(eq(coverLetters.resumeId, resumeId));
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .select('*')
+      .eq('resume_id', resumeId);
+      
+    if (error) throw error;
+    return data as CoverLetter[];
   }
   
   async getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined> {
-    const [coverLetter] = await db.select().from(coverLetters).where(eq(coverLetters.jobId, jobId));
-    return coverLetter;
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .select('*')
+      .eq('job_id', jobId)
+      .single();
+      
+    if (error || !data) return undefined;
+    return data as CoverLetter;
   }
 }
 
@@ -200,13 +403,15 @@ export class MemStorage implements IStorage {
   // Resume methods
   async saveResume(insertResume: InsertResume): Promise<Resume> {
     const id = crypto.randomUUID();
-    const now = new Date();
+    const now = new Date().toISOString();
     
     const resume: Resume = { 
       ...insertResume,
       id,
-      createdAt: now,
-      updatedAt: now
+      uploaded_at: now,
+      parsed_content: insertResume.parsed_content || null,
+      skills: insertResume.skills || null,
+      user_id: insertResume.user_id || null
     };
     
     this.resumes.set(id, resume);
@@ -221,10 +426,10 @@ export class MemStorage implements IStorage {
     const resumes = Array.from(this.resumes.values());
     if (resumes.length === 0) return undefined;
     
-    // Sort by created date descending
+    // Sort by uploaded date descending
     return resumes.sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
+      const dateA = new Date(a.uploaded_at).getTime();
+      const dateB = new Date(b.uploaded_at).getTime();
       return dateB - dateA;
     })[0];
   }
@@ -232,21 +437,21 @@ export class MemStorage implements IStorage {
   // Experience methods
   async saveExperience(insertExperience: InsertExperience): Promise<Experience> {
     const id = crypto.randomUUID();
-    const now = new Date();
     
     const experience: Experience = {
       ...insertExperience,
       id,
-      createdAt: now,
-      updatedAt: now
+      resume_id: insertExperience.resume_id,
+      start_date: insertExperience.start_date,
+      end_date: insertExperience.end_date || null,
+      description: insertExperience.description || null
     };
     
-    const resumeId = experience.resumeId;
-    if (!this.experiences.has(resumeId)) {
-      this.experiences.set(resumeId, []);
+    if (!this.experiences.has(experience.resume_id)) {
+      this.experiences.set(experience.resume_id, []);
     }
     
-    this.experiences.get(resumeId)?.push(experience);
+    this.experiences.get(experience.resume_id)?.push(experience);
     return experience;
   }
   
@@ -257,13 +462,22 @@ export class MemStorage implements IStorage {
   // Job methods
   async saveJobListing(insertJobListing: InsertJobListing): Promise<JobListing> {
     const id = crypto.randomUUID();
-    const now = new Date();
+    const now = new Date().toISOString();
     
     const job: JobListing = {
       ...insertJobListing,
       id,
-      createdAt: now,
-      updatedAt: now
+      created_at: now,
+      updated_at: now,
+      location: insertJobListing.location || null,
+      requirements: insertJobListing.requirements || null,
+      source: insertJobListing.source || "linkedin",
+      posted_date: insertJobListing.posted_date?.toISOString() || null,
+      salary: insertJobListing.salary || null,
+      hiring_manager_name: insertJobListing.hiring_manager_name || null,
+      hiring_manager_email: insertJobListing.hiring_manager_email || null,
+      hiring_manager_title: insertJobListing.hiring_manager_title || null,
+      processed: insertJobListing.processed || false
     };
     
     this.jobListings.set(id, job);
@@ -319,13 +533,14 @@ export class MemStorage implements IStorage {
   // Cover letter methods
   async saveCoverLetter(insertCoverLetter: InsertCoverLetter): Promise<CoverLetter> {
     const id = crypto.randomUUID();
-    const now = new Date();
+    const now = new Date().toISOString();
     
     const coverLetter: CoverLetter = {
       ...insertCoverLetter,
       id,
-      createdAt: now,
-      updatedAt: now
+      created_at: now,
+      job_id: insertCoverLetter.job_id,
+      user_id: insertCoverLetter.user_id || null
     };
     
     this.coverLetters.set(id, coverLetter);
@@ -338,37 +553,72 @@ export class MemStorage implements IStorage {
   
   async getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]> {
     return Array.from(this.coverLetters.values()).filter(
-      coverLetter => coverLetter.resumeId === resumeId
+      coverLetter => resumeId === resumeId // We need to update this to match how resume IDs are linked to cover letters
     );
   }
   
   async getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined> {
     return Array.from(this.coverLetters.values()).find(
-      coverLetter => coverLetter.jobId === jobId
+      coverLetter => coverLetter.job_id === jobId
     );
   }
   
   // Initialize with sample job sources
   private initializeJobSources() {
+    const now = new Date().toISOString();
     const sources = [
-      { id: this.jobSourceIdCounter++, name: 'LinkedIn', key: 'linkedin', enabled: true, logo: 'https://placehold.co/100x100/0077b5/ffffff?text=LI' },
-      { id: this.jobSourceIdCounter++, name: 'Indeed', key: 'indeed', enabled: true, logo: 'https://placehold.co/100x100/2164f3/ffffff?text=IN' },
-      { id: this.jobSourceIdCounter++, name: 'Glassdoor', key: 'glassdoor', enabled: false, logo: 'https://placehold.co/100x100/0caa41/ffffff?text=GD' },
-      { id: this.jobSourceIdCounter++, name: 'ZipRecruiter', key: 'ziprecruiter', enabled: false, logo: 'https://placehold.co/100x100/5866eb/ffffff?text=ZR' },
-      { id: this.jobSourceIdCounter++, name: 'Monster', key: 'monster', enabled: false, logo: 'https://placehold.co/100x100/6e32c9/ffffff?text=MO' },
+      { 
+        id: crypto.randomUUID(), 
+        user_id: null,
+        source_name: 'LinkedIn', 
+        enabled: true, 
+        created_at: now,
+        updated_at: now
+      },
+      { 
+        id: crypto.randomUUID(), 
+        user_id: null,
+        source_name: 'Indeed', 
+        enabled: true, 
+        created_at: now,
+        updated_at: now
+      },
+      { 
+        id: crypto.randomUUID(), 
+        user_id: null,
+        source_name: 'Glassdoor', 
+        enabled: false, 
+        created_at: now,
+        updated_at: now
+      },
+      { 
+        id: crypto.randomUUID(), 
+        user_id: null,
+        source_name: 'ZipRecruiter', 
+        enabled: false, 
+        created_at: now,
+        updated_at: now
+      },
+      { 
+        id: crypto.randomUUID(), 
+        user_id: null,
+        source_name: 'Monster', 
+        enabled: false, 
+        created_at: now,
+        updated_at: now
+      },
     ];
     
-    sources.forEach(source => {
-      this.jobSources.set(source.id, source);
+    sources.forEach((source, index) => {
+      this.jobSources.set(index + 1, source as any as JobSource);
     });
   }
 
   // Initialize with sample jobs
   private initializeJobs() {
-    const defaultResumeId = crypto.randomUUID();
-    const sampleJobs: InsertJobListing[] = [
+    const now = new Date().toISOString();
+    const sampleJobs = [
       {
-        resumeId: defaultResumeId,
         title: "Frontend Developer",
         company: "TechFlow",
         location: "San Francisco, CA",
@@ -376,15 +626,16 @@ export class MemStorage implements IStorage {
         requirements: ["React", "TypeScript", "CSS"],
         url: "https://example.com/apply",
         source: "linkedin",
-        postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        posted_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         salary: "$110,000 - $140,000",
-        hiringManagerName: "Jane Smith",
-        hiringManagerEmail: "jane@techflow.com",
-        hiringManagerTitle: "Engineering Manager",
-        processed: false
+        hiring_manager_name: "Jane Smith",
+        hiring_manager_email: "jane@techflow.com",
+        hiring_manager_title: "Engineering Manager",
+        processed: false,
+        created_at: now,
+        updated_at: now
       },
       {
-        resumeId: defaultResumeId,
         title: "Senior React Developer",
         company: "InnovateCorp",
         location: "New York, NY",
@@ -392,34 +643,38 @@ export class MemStorage implements IStorage {
         requirements: ["React", "Redux", "Node.js"],
         url: "https://example.com/apply",
         source: "indeed",
-        postedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        posted_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
         salary: "$130,000 - $160,000",
-        hiringManagerName: "John Doe",
-        hiringManagerEmail: "john@innovatecorp.com",
-        hiringManagerTitle: "CTO",
-        processed: false
+        hiring_manager_name: "John Doe",
+        hiring_manager_email: "john@innovatecorp.com",
+        hiring_manager_title: "CTO",
+        processed: false,
+        created_at: now,
+        updated_at: now
       },
       {
-        resumeId: defaultResumeId,
         title: "Full Stack Developer",
         company: "GrowthLabs",
         location: "Remote",
-        description: "Join our 100% remote team as a Full Stack Developer. We're building cutting-edge tools for startups. You should be comfortable with React, Node.js, and have experience with cloud services (AWS or GCP).",
+        description: "Join our 100% remote team as a Full Stack Developer. We're building cutting-edge tools for startups. You should be comfortable with React, Node.js, and have experience with cloud services.",
         requirements: ["React", "Node.js", "AWS"],
         url: "https://example.com/apply",
         source: "linkedin",
-        postedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        posted_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         salary: "$120,000 - $150,000",
-        hiringManagerName: "Sarah Johnson",
-        hiringManagerEmail: "sarah@growthlabs.com",
-        hiringManagerTitle: "Head of Engineering",
-        processed: false
+        hiring_manager_name: "Sarah Johnson",
+        hiring_manager_email: "sarah@growthlabs.com",
+        hiring_manager_title: "Head of Engineering",
+        processed: false,
+        created_at: now,
+        updated_at: now
       }
     ];
     
     // Add sample jobs to storage
     sampleJobs.forEach(job => {
-      this.saveJobListing(job);
+      const id = crypto.randomUUID();
+      this.jobListings.set(id, { id, ...job } as any as JobListing);
     });
   }
 }

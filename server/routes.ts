@@ -1,11 +1,41 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, type InsertResume, type InsertJobListing, type InsertJobSource, type InsertCoverLetter } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertResumeSchema, insertJobListingSchema as insertJobSchema, insertJobSourceSchema } from "../shared/schema";
 import { z } from "zod";
+
+// Define schemas for validation
+const insertResumeSchema = z.object({
+  filename: z.string(),
+  storage_path: z.string(),
+  parsed_content: z.string().nullable().optional(),
+  skills: z.array(z.string()).nullable().optional(),
+  user_id: z.string().uuid().nullable().optional()
+});
+
+const insertJobSchema = z.object({
+  title: z.string(),
+  company: z.string(),
+  location: z.string().nullable().optional(),
+  description: z.string(),
+  requirements: z.array(z.string()).nullable().optional(),
+  url: z.string(),
+  source: z.string().optional(),
+  posted_date: z.string().optional(),
+  salary: z.string().nullable().optional(),
+  hiring_manager_name: z.string().nullable().optional(),
+  hiring_manager_email: z.string().nullable().optional(),
+  hiring_manager_title: z.string().nullable().optional(),
+  processed: z.boolean().optional()
+});
+
+const insertJobSourceSchema = z.object({
+  user_id: z.string().uuid().nullable().optional(),
+  source_name: z.string(),
+  enabled: z.boolean().optional()
+});
 
 // Configure multer for file uploads
 const upload = multer({
@@ -44,28 +74,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Extract file information
-      const { filename, originalname, mimetype, size } = req.file;
+      const { filename, originalname } = req.file;
       
       // Normally we would parse the resume here using a service like Claude or GPT
       // For this demo, we'll just use sample data
-      const resume = {
+      const parsedSkills = ["JavaScript", "React", "Node.js", "TypeScript"];
+      const parsedContent = JSON.stringify({
         name: "John Doe",
         email: "john.doe@example.com",
         phone: "555-123-4567",
-        filePath: `/uploads/${filename}`,
         latestRole: "Senior Developer",
-        skills: ["JavaScript", "React", "Node.js", "TypeScript"]
+        skills: parsedSkills,
+        experiences: [
+          {
+            company: "Tech Company",
+            title: "Senior Developer",
+            startDate: "2020-01",
+            endDate: "Present",
+            description: "Led development of key features"
+          }
+        ]
+      });
+      
+      // Prepare resume data for Supabase format
+      const resumeData: InsertResume = {
+        filename: originalname,
+        storage_path: `/uploads/${filename}`,
+        skills: parsedSkills,
+        parsed_content: parsedContent
       };
 
       // Validate the resume data
-      const validatedResume = insertResumeSchema.parse(resume);
+      const validatedResume = insertResumeSchema.parse(resumeData);
       
       // Save to storage
       const savedResume = await storage.saveResume(validatedResume);
       
+      // Return both the saved resume and the parsed content for the frontend
       res.status(200).json({
         message: "Resume uploaded successfully",
-        resume: savedResume
+        resume: savedResume,
+        parsedData: JSON.parse(parsedContent)
       });
     } catch (error) {
       console.error("Resume upload error:", error);
@@ -165,15 +214,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Parse the resume content to get the user's details
+      let parsedResume;
+      try {
+        parsedResume = resume.parsed_content ? JSON.parse(resume.parsed_content) : null;
+      } catch (e) {
+        console.error("Failed to parse resume content:", e);
+        parsedResume = null;
+      }
+      
+      // Default values if we can't extract from resume
+      const name = parsedResume?.name || "Applicant";
+      const role = parsedResume?.latestRole || "Professional";
+      const skills = parsedResume?.skills || resume.skills || ["relevant skills"];
+      
       // Short timeout to simulate AI processing
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Insert cover letter into storage
-      const coverLetterData = {
-        resumeId,
-        jobId,
-        content: `Dear Hiring Manager at ${job.company},\n\nI am writing to express my interest in the ${job.title} position. With my background as a ${resume.latestRole} and skills in ${resume.skills.join(", ")}, I believe I would be a great fit for this role.\n\nI am particularly drawn to ${job.company} because of its innovative approach to solving challenges in the industry. The ${job.title} role aligns perfectly with my career goals and expertise.\n\nI look forward to discussing how my skills and experience can benefit your team.\n\nSincerely,\n${resume.name}`,
-        filePath: `/cover-letters/${resumeId}-${jobId}.pdf`
+      // Generate the cover letter content
+      const content = `Dear Hiring Manager at ${job.company},\n\nI am writing to express my interest in the ${job.title} position. With my background as a ${role} and skills in ${Array.isArray(skills) ? skills.join(", ") : skills}, I believe I would be a great fit for this role.\n\nI am particularly drawn to ${job.company} because of its innovative approach to solving challenges in the industry. The ${job.title} role aligns perfectly with my career goals and expertise.\n\nI look forward to discussing how my skills and experience can benefit your team.\n\nSincerely,\n${name}`;
+      
+      // Insert cover letter into storage in Supabase format
+      const coverLetterData: InsertCoverLetter = {
+        job_id: jobId,
+        content: content,
+        user_id: null
       };
       
       const coverLetter = await storage.saveCoverLetter(coverLetterData);
