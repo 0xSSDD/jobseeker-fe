@@ -1,0 +1,112 @@
+-- Supabase Schema for LinkedIn MCP Server
+
+-- Create resumes table
+create table if not exists resumes (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  email text,
+  phone text,
+  file_path text not null,
+  latest_role text not null,
+  skills text[] not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create experiences table
+create table if not exists experiences (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  title text not null,
+  company text not null,
+  start_date date not null,
+  end_date date,
+  description text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create job_listings table
+create table if not exists job_listings (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  title text not null,
+  company text not null,
+  location text,
+  description text not null,
+  requirements text[],
+  url text not null,
+  source text default 'linkedin',
+  posted_date timestamp with time zone,
+  salary text,
+  hiring_manager_name text,
+  hiring_manager_email text,
+  hiring_manager_title text,
+  processed boolean default false,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create processing_status table
+create table if not exists processing_status (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  status text not null,
+  message text,
+  created_at timestamp with time zone default now()
+);
+
+-- Create coverletters table
+create table if not exists coverletters (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  job_id uuid references job_listings(id) on delete cascade,
+  content text not null,
+  file_path text not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create email_drafts table
+create table if not exists email_drafts (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  job_id uuid references job_listings(id) on delete cascade,
+  cover_letter_id uuid references coverletters(id) on delete cascade,
+  subject text not null,
+  recipient text not null,
+  body text not null,
+  sent boolean default false,
+  sent_at timestamp with time zone,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Create applications table
+create table if not exists applications (
+  id uuid primary key default uuid_generate_v4(),
+  resume_id uuid references resumes(id) on delete cascade,
+  job_id uuid references job_listings(id) on delete cascade,
+  cover_letter_id uuid references coverletters(id) on delete set null,
+  email_draft_id uuid references email_drafts(id) on delete set null,
+  status text not null check (status in ('PENDING', 'PROCESSING', 'READY', 'ERROR')),
+  error_message text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Note: For a production application, you would want to add user authentication
+-- and set up Row Level Security (RLS) policies to ensure users can only access
+-- their own data. For simplicity, we're not including that in this initial setup.
+
+-- Example of how to add user ID to tables and set up RLS:
+-- 1. Add user_id column to resumes table
+-- ALTER TABLE resumes ADD COLUMN user_id UUID REFERENCES auth.users(id);
+
+-- 2. Enable RLS on tables
+-- ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create access policies
+-- CREATE POLICY "Users can view their own resumes"
+--   ON resumes FOR SELECT
+--   USING (auth.uid() = user_id);

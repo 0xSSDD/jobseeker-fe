@@ -1,4 +1,6 @@
-import { users, type User, type InsertUser, type Resume, type InsertResume, type Job, type InsertJob } from "@shared/schema";
+import { users, resumes, jobs, jobSources, coverLetters, type User, type InsertUser, type Resume, type InsertResume, type Job, type InsertJob, type JobSource, type CoverLetter, type InsertCoverLetter } from "@shared/schema";
+import { db } from "./db";
+import { eq, like, ilike, and, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -12,25 +14,123 @@ export interface IStorage {
   
   // Job methods
   saveJob(job: InsertJob): Promise<Job>;
-  getJobs(jobTitle?: string, location?: string): Promise<Job[]>;
+  getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]>;
   getJobById(id: number): Promise<Job | undefined>;
+  
+  // Job source methods
+  getJobSources(): Promise<JobSource[]>;
+  toggleJobSource(id: number, enabled: boolean): Promise<JobSource>;
+}
+
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  // Resume methods
+  async saveResume(insertResume: InsertResume): Promise<Resume> {
+    const [resume] = await db.insert(resumes).values(insertResume).returning();
+    return resume;
+  }
+
+  async getResumeByUserId(userId: number | null): Promise<Resume | undefined> {
+    if (userId) {
+      const [resume] = await db.select().from(resumes).where(eq(resumes.userId, userId)).orderBy(resumes.id).limit(1);
+      return resume;
+    }
+    // If no userId provided, return the most recent resume
+    const [resume] = await db.select().from(resumes).orderBy(resumes.id).limit(1);
+    return resume;
+  }
+  
+  // Job methods
+  async saveJob(insertJob: InsertJob): Promise<Job> {
+    const [job] = await db.insert(jobs).values(insertJob).returning();
+    return job;
+  }
+
+  async getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]> {
+    let conditions = [];
+    
+    if (jobTitle) {
+      conditions.push(ilike(jobs.title, `%${jobTitle}%`));
+    }
+    
+    if (location) {
+      conditions.push(ilike(jobs.location, `%${location}%`));
+    }
+    
+    if (sources && sources.length > 0) {
+      conditions.push(inArray(jobs.source, sources));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select().from(jobs).where(and(...conditions));
+    }
+    
+    return await db.select().from(jobs);
+  }
+
+  async getJobById(id: number): Promise<Job | undefined> {
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, id));
+    return job;
+  }
+  
+  // Job source methods
+  async getJobSources(): Promise<JobSource[]> {
+    return await db.select().from(jobSources);
+  }
+
+  async toggleJobSource(id: number, enabled: boolean): Promise<JobSource> {
+    const [updatedSource] = await db
+      .update(jobSources)
+      .set({ enabled })
+      .where(eq(jobSources.id, id))
+      .returning();
+    
+    if (!updatedSource) {
+      throw new Error(`Job source with id ${id} not found`);
+    }
+    
+    return updatedSource;
+  }
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private resumes: Map<number, Resume>;
   private jobs: Map<number, Job>;
+  private jobSources: Map<number, JobSource>;
   private userIdCounter: number;
   private resumeIdCounter: number;
   private jobIdCounter: number;
+  private jobSourceIdCounter: number;
 
   constructor() {
     this.users = new Map();
     this.resumes = new Map();
     this.jobs = new Map();
+    this.jobSources = new Map();
     this.userIdCounter = 1;
     this.resumeIdCounter = 1;
     this.jobIdCounter = 1;
+    this.jobSourceIdCounter = 1;
+    
+    // Initialize with some sample job sources
+    this.initializeJobSources();
     
     // Initialize with some sample jobs
     this.initializeJobs();
@@ -57,7 +157,12 @@ export class MemStorage implements IStorage {
   // Resume methods
   async saveResume(insertResume: InsertResume): Promise<Resume> {
     const id = this.resumeIdCounter++;
-    const resume: Resume = { ...insertResume, id };
+    const resume: Resume = { 
+      ...insertResume, 
+      id,
+      userId: insertResume.userId || null,
+      content: insertResume.content || null
+    };
     this.resumes.set(id, resume);
     return resume;
   }
@@ -71,12 +176,20 @@ export class MemStorage implements IStorage {
   // Job methods
   async saveJob(insertJob: InsertJob): Promise<Job> {
     const id = this.jobIdCounter++;
-    const job: Job = { ...insertJob, id };
+    const job: Job = {
+      ...insertJob,
+      id,
+      salary: insertJob.salary || null,
+      matchScore: insertJob.matchScore || null,
+      applyUrl: insertJob.applyUrl || null,
+      logo: insertJob.logo || null,
+      source: insertJob.source || null
+    };
     this.jobs.set(id, job);
     return job;
   }
   
-  async getJobs(jobTitle?: string, location?: string): Promise<Job[]> {
+  async getJobs(jobTitle?: string, location?: string, sources?: string[]): Promise<Job[]> {
     let filteredJobs = Array.from(this.jobs.values());
     
     if (jobTitle) {
@@ -93,11 +206,48 @@ export class MemStorage implements IStorage {
       );
     }
     
+    if (sources && sources.length > 0) {
+      filteredJobs = filteredJobs.filter(job => 
+        job.source && sources.includes(job.source)
+      );
+    }
+    
     return filteredJobs;
   }
   
   async getJobById(id: number): Promise<Job | undefined> {
     return this.jobs.get(id);
+  }
+  
+  // Job source methods
+  async getJobSources(): Promise<JobSource[]> {
+    return Array.from(this.jobSources.values());
+  }
+  
+  async toggleJobSource(id: number, enabled: boolean): Promise<JobSource> {
+    const jobSource = this.jobSources.get(id);
+    if (!jobSource) {
+      throw new Error(`Job source with ID ${id} not found`);
+    }
+    
+    const updatedJobSource = { ...jobSource, enabled };
+    this.jobSources.set(id, updatedJobSource);
+    return updatedJobSource;
+  }
+  
+  // Initialize with sample job sources
+  private initializeJobSources() {
+    const sources = [
+      { id: this.jobSourceIdCounter++, name: 'LinkedIn', key: 'linkedin', enabled: true, logo: 'https://placehold.co/100x100/0077b5/ffffff?text=LI' },
+      { id: this.jobSourceIdCounter++, name: 'Indeed', key: 'indeed', enabled: true, logo: 'https://placehold.co/100x100/2164f3/ffffff?text=IN' },
+      { id: this.jobSourceIdCounter++, name: 'Glassdoor', key: 'glassdoor', enabled: false, logo: 'https://placehold.co/100x100/0caa41/ffffff?text=GD' },
+      { id: this.jobSourceIdCounter++, name: 'ZipRecruiter', key: 'ziprecruiter', enabled: false, logo: 'https://placehold.co/100x100/5866eb/ffffff?text=ZR' },
+      { id: this.jobSourceIdCounter++, name: 'Monster', key: 'monster', enabled: false, logo: 'https://placehold.co/100x100/6e32c9/ffffff?text=MO' },
+    ];
+    
+    sources.forEach(source => {
+      this.jobSources.set(source.id, source);
+    });
   }
 
   // Initialize with sample jobs
@@ -112,7 +262,8 @@ export class MemStorage implements IStorage {
         matchScore: 92,
         postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=TF"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=TF",
+        source: "linkedin"
       },
       {
         title: "Senior React Developer",
@@ -123,7 +274,8 @@ export class MemStorage implements IStorage {
         matchScore: 88,
         postedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=IC"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=IC",
+        source: "indeed"
       },
       {
         title: "Full Stack Developer",
@@ -134,7 +286,8 @@ export class MemStorage implements IStorage {
         matchScore: 85,
         postedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=GL"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=GL",
+        source: "linkedin"
       },
       {
         title: "UI/UX Developer",
@@ -145,7 +298,8 @@ export class MemStorage implements IStorage {
         matchScore: 78,
         postedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=DF"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=DF",
+        source: "linkedin"
       },
       {
         title: "JavaScript Engineer",
@@ -156,7 +310,8 @@ export class MemStorage implements IStorage {
         matchScore: 90,
         postedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=CN"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=CN",
+        source: "indeed"
       },
       {
         title: "Frontend Architect",
@@ -167,7 +322,8 @@ export class MemStorage implements IStorage {
         matchScore: 82,
         postedDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
         applyUrl: "https://example.com/apply",
-        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=SU"
+        logo: "https://placehold.co/100x100/4f46e5/ffffff?text=SU",
+        source: "glassdoor"
       }
     ];
     
@@ -178,4 +334,7 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Choose the appropriate storage implementation
+// For development and testing: export const storage = new MemStorage();
+// For production with database: export const storage = new DatabaseStorage();
+export const storage = new DatabaseStorage();

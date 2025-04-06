@@ -2,6 +2,7 @@ import { useState } from "react";
 import { UploadStep } from "./UploadStep";
 import { LoadingStep } from "./LoadingStep";
 import { ResultsStep } from "./ResultsStep";
+import Sidebar from "./Sidebar";
 import { JobSearchState, UploadedFile, CurrentStep } from "@/types";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,7 @@ export default function JobSearchApp() {
     jobs: [],
     isSearching: false,
     error: null,
+    jobSources: [],
   });
 
   const handleResumeUpload = (resume: UploadedFile) => {
@@ -44,12 +46,25 @@ export default function JobSearchApp() {
       location,
     });
   };
+  
+  const handleUpdateSources = (sources: string[]) => {
+    setState({
+      ...state,
+      jobSources: sources,
+    });
+  };
 
-  const handleStartSearch = async () => {
+  const handleStartSearch = async (jobTitle?: string, location?: string) => {
+    // Use arguments if provided, otherwise use state
+    const searchJobTitle = jobTitle !== undefined ? jobTitle : state.jobTitle;
+    const searchLocation = location !== undefined ? location : state.location;
+    
     setState({
       ...state,
       currentStep: "loading",
       isSearching: true,
+      jobTitle: searchJobTitle, // Update state with search values
+      location: searchLocation,
     });
 
     try {
@@ -62,8 +77,9 @@ export default function JobSearchApp() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              jobTitle: state.jobTitle,
-              location: state.location,
+              jobTitle: searchJobTitle,
+              location: searchLocation,
+              sources: state.jobSources.length ? state.jobSources : undefined,
             }),
           });
           
@@ -75,12 +91,12 @@ export default function JobSearchApp() {
         },
       });
 
-      setState({
-        ...state,
+      setState(prevState => ({
+        ...prevState,
         currentStep: "results",
         isSearching: false,
         jobs: response.jobs,
-      });
+      }));
     } catch (error) {
       console.error("Error searching for jobs:", error);
       toast({
@@ -89,12 +105,12 @@ export default function JobSearchApp() {
         variant: "destructive",
       });
       
-      setState({
-        ...state,
+      setState(prevState => ({
+        ...prevState,
         currentStep: "upload",
         isSearching: false,
         error: "Failed to search for jobs",
-      });
+      }));
     }
   };
 
@@ -141,7 +157,7 @@ export default function JobSearchApp() {
         <div className="flex justify-center mt-6">
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-md px-10 py-2 font-medium"
-            onClick={handleStartSearch}
+            onClick={() => handleStartSearch()}
             disabled={!state.resume || !state.jobTitle}
           >
             <Search className="mr-2 h-5 w-5" />
@@ -153,44 +169,69 @@ export default function JobSearchApp() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden border-0 shadow-md">
-        <CardContent className="p-6">
-          {state.currentStep === "upload" && (
-            <>
-              <div className="flex flex-col gap-6">
-                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                  <h2 className="font-medium text-indigo-800 flex items-center gap-2">
-                    <Upload size={18} />
-                    How it works
-                  </h2>
-                  <ol className="mt-2 text-sm text-gray-600 space-y-1 list-decimal pl-5">
-                    <li>Upload your resume (PDF, DOCX, DOC, or TXT)</li>
-                    <li>Enter job title and location you're interested in</li>
-                    <li>Get custom cover letters for each job listing</li>
-                    <li>Download or send them directly via email</li>
-                  </ol>
+    <div className="flex flex-col md:flex-row gap-6">
+      {state.resume && (
+        <div className="hidden md:block">
+          <Sidebar 
+            onSourcesChange={handleUpdateSources}
+            onSearch={handleStartSearch}
+            jobTitle={state.jobTitle}
+            location={state.location}
+          />
+        </div>
+      )}
+      
+      <div className="flex-1 space-y-6">
+        <Card className="overflow-hidden border-0 shadow-md">
+          <CardContent className="p-6">
+            {state.currentStep === "upload" && (
+              <>
+                <div className="flex flex-col gap-6">
+                  <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                    <h2 className="font-medium text-indigo-800 flex items-center gap-2">
+                      <Upload size={18} />
+                      How it works
+                    </h2>
+                    <ol className="mt-2 text-sm text-gray-600 space-y-1 list-decimal pl-5">
+                      <li>Upload your resume (PDF, DOCX, DOC, or TXT)</li>
+                      <li>Enter job title and location you're interested in</li>
+                      <li>Get custom cover letters for each job listing</li>
+                      <li>Download or send them directly via email</li>
+                    </ol>
+                  </div>
+                  
+                  <UploadStep
+                    resume={state.resume}
+                    onUpload={handleResumeUpload}
+                    onRemove={handleRemoveResume}
+                    onContinue={() => {}}
+                  />
+                  
+                  {state.resume && renderJobSearchForm()}
                 </div>
-                
-                <UploadStep
-                  resume={state.resume}
-                  onUpload={handleResumeUpload}
-                  onRemove={handleRemoveResume}
-                  onContinue={() => {}}
-                />
-                
-                {state.resume && renderJobSearchForm()}
-              </div>
-            </>
-          )}
+              </>
+            )}
 
-          {state.currentStep === "loading" && <LoadingStep />}
+            {state.currentStep === "loading" && <LoadingStep />}
 
-          {state.currentStep === "results" && (
-            <ResultsStep jobs={state.jobs} onSearchAgain={resetToUpload} />
-          )}
-        </CardContent>
-      </Card>
+            {state.currentStep === "results" && (
+              <ResultsStep jobs={state.jobs} onSearchAgain={resetToUpload} />
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Mobile sidebar shown below results on small screens */}
+        {state.resume && state.currentStep === "results" && (
+          <div className="md:hidden">
+            <Sidebar 
+              onSourcesChange={handleUpdateSources}
+              onSearch={handleStartSearch}
+              jobTitle={state.jobTitle}
+              location={state.location}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { Job } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, Mail, ExternalLink, Star, Building, DollarSign, MapPin, Clock } from "lucide-react";
+import { Download, Mail, ExternalLink, Star, Building, DollarSign, MapPin, Clock, Database } from "lucide-react";
 import { useState } from "react";
 
 interface JobCardProps {
@@ -51,6 +51,36 @@ export default function JobCard({ job }: JobCardProps) {
   const handleDownloadCoverLetter = () => {
     // This would typically trigger a download of the cover letter
     alert("In a real app, this would download your customized cover letter as a PDF/DOCX file");
+  };
+  
+  // Get job source label
+  const getSourceIcon = (source: string | null) => {
+    if (!source) return null;
+    
+    switch (source) {
+      case 'linkedin':
+        return <Badge variant="outline" className="flex items-center gap-1 bg-[#0077b5] bg-opacity-10 text-[#0077b5] border-[#0077b5] border-opacity-30">
+          <Database className="h-3 w-3" /> LinkedIn
+        </Badge>;
+      case 'indeed':
+        return <Badge variant="outline" className="flex items-center gap-1 bg-[#2164f3] bg-opacity-10 text-[#2164f3] border-[#2164f3] border-opacity-30">
+          <Database className="h-3 w-3" /> Indeed
+        </Badge>;
+      case 'glassdoor':
+        return <Badge variant="outline" className="flex items-center gap-1 bg-[#0caa41] bg-opacity-10 text-[#0caa41] border-[#0caa41] border-opacity-30">
+          <Database className="h-3 w-3" /> Glassdoor
+        </Badge>;
+      case 'ziprecruiter':
+        return <Badge variant="outline" className="flex items-center gap-1 bg-[#5866eb] bg-opacity-10 text-[#5866eb] border-[#5866eb] border-opacity-30">
+          <Database className="h-3 w-3" /> ZipRecruiter
+        </Badge>;
+      case 'monster':
+        return <Badge variant="outline" className="flex items-center gap-1 bg-[#6e32c9] bg-opacity-10 text-[#6e32c9] border-[#6e32c9] border-opacity-30">
+          <Database className="h-3 w-3" /> Monster
+        </Badge>;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -106,9 +136,13 @@ export default function JobCard({ job }: JobCardProps) {
                 )}
               </div>
               
-              <div className="flex items-center text-xs text-gray-500 mt-3">
-                <Clock className="mr-1 h-3.5 w-3.5" />
-                Posted {getDaysAgo(job.postedDate)}
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
+                <div className="flex items-center">
+                  <Clock className="mr-1 h-3.5 w-3.5" />
+                  Posted {getDaysAgo(job.postedDate)}
+                </div>
+                
+                {job.source && getSourceIcon(job.source)}
               </div>
             </div>
           </div>

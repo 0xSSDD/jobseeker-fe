@@ -17,6 +17,7 @@ export interface JobSearchState {
   jobs: Job[];
   isSearching: boolean;
   error: string | null;
+  jobSources: string[];
 }
 
 export interface DropzoneState {
