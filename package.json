@@ -11,6 +11,7 @@
     "db:seed": "tsx scripts/seed-db.ts"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "@anthropic-ai/sdk": "^0.37.0",
     "@hookform/resolvers": "^3.10.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
