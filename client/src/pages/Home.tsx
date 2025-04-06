@@ -19,7 +19,7 @@ export default function Home() {
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState<Record<string, boolean>>({});
   const [coverLetterUrls, setCoverLetterUrls] = useState<Record<string, string>>({});
 
-  // Mock jobs data for the UI
+  // Mock jobs data to match the screenshot
   useEffect(() => {
     const mockJobs: Job[] = [
       {
@@ -53,6 +53,7 @@ export default function Home() {
 
   const handleUploadSuccess = (uploadedResume: any) => {
     setResume(uploadedResume);
+    setIsUploading(false);
     // In a real app, we'd trigger the job search here
   };
 
@@ -65,7 +66,7 @@ export default function Home() {
     
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Set the cover letter URL
       setCoverLetterUrls(prev => ({
@@ -85,23 +86,17 @@ export default function Home() {
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto">
-        <p className="text-gray-400 mb-8 text-center">
-          Upload your resume and let us find the perfect job matches with customized cover letters
-        </p>
-        
-        <ResumeUpload 
-          onUploadSuccess={handleUploadSuccess}
-          isUploading={isUploading}
-        />
-        
-        <JobMatchesTable 
-          jobs={jobs}
-          onGenerateCoverLetter={handleGenerateCoverLetter}
-          isGeneratingCoverLetter={isGeneratingCoverLetter}
-          coverLetterUrls={coverLetterUrls}
-        />
-      </div>
+      <ResumeUpload 
+        onUploadSuccess={handleUploadSuccess}
+        isUploading={isUploading}
+      />
+      
+      <JobMatchesTable 
+        jobs={jobs}
+        onGenerateCoverLetter={handleGenerateCoverLetter}
+        isGeneratingCoverLetter={isGeneratingCoverLetter}
+        coverLetterUrls={coverLetterUrls}
+      />
     </MainLayout>
   );
 }

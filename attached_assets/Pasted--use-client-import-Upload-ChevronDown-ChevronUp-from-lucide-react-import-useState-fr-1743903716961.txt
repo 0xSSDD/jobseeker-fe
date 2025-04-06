@@ -1,0 +1,236 @@
+"use client";
+
+import { Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { JobList } from "@/components/job-list";
+import { Sidebar } from "@/components/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Job } from "./types";
+
+// Mock data for demonstration
+const mockJobs: Job[] = [
+  {
+    id: "1",
+    title: "Senior Software Engineer",
+    company: "Tech Corp",
+    location: "Remote",
+    description: "Looking for a senior engineer with 5+ years of experience in React and Node.js",
+    url: "https://example.com/job1",
+    source: "linkedin",
+    postedAt: "2024-03-20",
+  },
+  {
+    id: "2",
+    title: "Full Stack Developer",
+    company: "Startup Inc",
+    location: "New York, NY",
+    description: "Join our fast-growing team building the future of fintech",
+    url: "https://example.com/job2",
+    source: "indeed",
+    postedAt: "2024-03-21",
+  },
+  {
+    id: "3",
+    title: "Frontend Engineer",
+    company: "Design Co",
+    location: "San Francisco, CA",
+    description: "Create beautiful and responsive web applications",
+    url: "https://example.com/job3",
+    source: "linkedin",
+    postedAt: "2024-03-19",
+  }
+];
+
+export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showJobs, setShowJobs] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const { toast } = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.type === 'application/pdf') {
+        setFile(selectedFile);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a PDF file",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      // TODO: Implement file upload to Supabase storage
+      toast({
+        title: "Success!",
+        description: "Your resume has been uploaded. Searching for matching jobs...",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Theme toggle in top right corner */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
+      <div className="flex min-h-screen flex-col lg:flex-row">
+        {/* Sidebar for larger screens */}
+        <div className="hidden lg:block lg:w-64 border-r">
+          <div className="p-6 h-full">
+            <Sidebar />
+          </div>
+        </div>
+
+        {/* Mobile sidebar */}
+        <div className={`lg:hidden fixed inset-y-0 left-0 transform ${
+          showSidebar ? "translate-x-0" : "-translate-x-full"
+        } w-64 bg-background border-r transition-transform duration-200 ease-in-out z-30`}>
+          <div className="p-6 h-full">
+            <Sidebar />
+          </div>
+        </div>
+
+        {/* Main content */}
+        <main className="flex-1 min-h-screen">
+          <div className="lg:hidden sticky top-0 z-20">
+            <div className="flex items-center px-4 py-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSidebar(!showSidebar)}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-6 h-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                  />
+                </svg>
+              </Button>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8">
+            <div className="text-center space-y-4">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Job Search Assistant</h1>
+              <p className="text-muted-foreground text-base sm:text-lg">
+                Upload your resume and let us find the perfect job matches with customized cover letters
+              </p>
+            </div>
+
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Upload Your Resume</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="resume">Resume (PDF)</Label>
+                    <div className="grid w-full items-center gap-4">
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="resume"
+                          className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/70 transition-colors"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="h-12 w-12 text-muted-foreground mb-2" />
+                            <p className="mb-2 text-sm text-muted-foreground">
+                              <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
+                          </div>
+                          <Input
+                            id="resume"
+                            type="file"
+                            accept=".pdf"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    {file && (
+                      <p className="text-sm text-muted-foreground">
+                        Selected file: {file.name}
+                      </p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={!file || isLoading}>
+                    {isLoading ? "Processing..." : "Find Matching Jobs"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl sm:text-2xl font-semibold">Example Job Matches</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowJobs(!showJobs)}
+                  className="flex items-center gap-2"
+                >
+                  {showJobs ? (
+                    <>Hide Jobs <ChevronUp className="h-4 w-4" /></>
+                  ) : (
+                    <>Show Jobs <ChevronDown className="h-4 w-4" /></>
+                  )}
+                </Button>
+              </div>
+              
+              {showJobs && (
+                <Card className="w-full overflow-hidden">
+                  <CardContent className="p-0 sm:p-6">
+                    <div className="overflow-x-auto">
+                      <JobList jobs={mockJobs} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-20 lg:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+    </div>
+  );
+}

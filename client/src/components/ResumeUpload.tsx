@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Info } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 interface ResumeUploadProps {
   onUploadSuccess: (resume: any) => void;
@@ -54,32 +54,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         email: 'john@example.com',
         phone: '(555) 123-4567',
         skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-        experiences: [
-          {
-            title: 'Frontend Developer',
-            company: 'Tech Company',
-            startDate: '2020-01',
-            endDate: '2022-12',
-            description: 'Developed and maintained web applications using React and TypeScript.'
-          }
-        ],
-        education: [
-          {
-            institution: 'University of Technology',
-            degree: 'Bachelor of Science',
-            field: 'Computer Science',
-            startDate: '2015-09',
-            endDate: '2019-06'
-          }
-        ],
-        summary: 'Experienced web developer with a focus on frontend technologies.',
-        latestRole: {
-          title: 'Frontend Developer',
-          company: 'Tech Company',
-          startDate: '2020-01',
-          endDate: '2022-12',
-          description: 'Developed and maintained web applications using React and TypeScript.'
-        }
       };
       
       onUploadSuccess(mockResumeData);
@@ -93,62 +67,45 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
   };
   
   return (
-    <div className="mb-8">
+    <div className="mb-8 w-full">
+      <h3 className="font-bold text-xl mb-3">Upload Your Resume</h3>
+      <div className="mb-2">
+        <p className="text-sm text-muted-foreground mb-1">Resume (PDF)</p>
+      </div>
       <div 
         className={`
-          relative border-2 border-dashed rounded-lg p-8 text-center 
-          ${dragActive ? 'border-primary bg-primary/5' : 'border-gray-700 hover:border-primary/70'} 
-          transition-colors
+          relative border border-border rounded-md p-8 text-center h-64
+          ${dragActive ? 'border-primary bg-accent/50' : 'bg-accent/30 hover:bg-accent/50'} 
+          transition-colors cursor-pointer
         `}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
+        onClick={onButtonClick}
       >
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.doc,.docx,.txt"
+          accept=".pdf"
           onChange={handleChange}
           className="hidden"
         />
         
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <FileText className="w-8 h-8 text-primary" />
-          </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-white">Upload Your Resume</h3>
-            <p className="text-gray-400 max-w-md mx-auto">
-              Drag and drop your resume file or click to browse. We support PDF, DOC, DOCX, and TXT formats.
-            </p>
-          </div>
-          
-          <button
-            onClick={onButtonClick}
-            disabled={isUploading}
-            className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-md flex items-center space-x-2 transition-colors"
-          >
-            {isUploading ? (
-              <>
-                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin" />
-                <span>Uploading...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-5 h-5" />
-                <span>Select Resume</span>
-              </>
-            )}
-          </button>
-          
-          <div className="flex items-center text-gray-400 text-sm">
-            <Info className="w-4 h-4 mr-1" />
-            <span>Your resume will be analyzed by our AI to find the best job matches</span>
-          </div>
+        <div className="flex flex-col items-center justify-center h-full space-y-2">
+          <Upload className="h-6 w-6 mb-2" />
+          <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+          <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
         </div>
       </div>
+
+      <button
+        onClick={onButtonClick}
+        disabled={isUploading}
+        className="w-full mt-4 py-2 bg-secondary hover:bg-secondary/90 text-center rounded-md transition-colors text-sm font-medium"
+      >
+        {isUploading ? "Processing..." : "Find Matching Jobs"}
+      </button>
     </div>
   );
 };
