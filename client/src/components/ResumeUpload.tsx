@@ -67,15 +67,15 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
   };
   
   return (
-    <div className="mb-8 w-full">
-      <h3 className="font-bold text-xl mb-3">Upload Your Resume</h3>
+    <div className="w-full max-w-2xl mx-auto bg-background rounded-lg">
+      <h3 className="font-semibold text-xl mb-2">Upload Your Resume</h3>
       <div className="mb-2">
-        <p className="text-sm text-muted-foreground mb-1">Resume (PDF)</p>
+        <p className="text-sm text-muted-foreground">Resume (PDF)</p>
       </div>
       <div 
         className={`
-          relative border border-border rounded-md p-8 text-center h-64
-          ${dragActive ? 'border-primary bg-accent/50' : 'bg-accent/30 hover:bg-accent/50'} 
+          relative border-2 border-border rounded-md p-8 text-center
+          ${dragActive ? 'border-primary bg-secondary/20' : 'bg-background hover:bg-secondary/10'} 
           transition-colors cursor-pointer
         `}
         onDragEnter={handleDrag}
@@ -92,8 +92,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
           className="hidden"
         />
         
-        <div className="flex flex-col items-center justify-center h-full space-y-2">
-          <Upload className="h-6 w-6 mb-2" />
+        <div className="flex flex-col items-center justify-center h-48 space-y-2">
+          <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
           <p className="text-xs text-muted-foreground">PDF (MAX. 10MB)</p>
         </div>
@@ -102,7 +102,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
       <button
         onClick={onButtonClick}
         disabled={isUploading}
-        className="w-full mt-4 py-2 bg-secondary hover:bg-secondary/90 text-center rounded-md transition-colors text-sm font-medium"
+        className="w-full mt-4 py-3 bg-secondary hover:bg-secondary/90 text-center rounded-md transition-colors text-sm font-medium"
       >
         {isUploading ? "Processing..." : "Find Matching Jobs"}
       </button>

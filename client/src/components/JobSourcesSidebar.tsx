@@ -18,9 +18,9 @@ const JobSourcesSidebar: React.FC<JobSourcesSidebarProps> = ({
   onToggleSource 
 }) => {
   return (
-    <div className="p-6 border-r border-border h-screen">
+    <div className="py-4 px-6 border-r border-border h-screen">
       <h2 className="text-xl font-bold mb-6">Job Sources</h2>
-      <div className="space-y-4">
+      <div className="space-y-6">
         {jobSources.map((source) => (
           <div key={source.id} className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -50,10 +50,15 @@ const JobSourcesSidebar: React.FC<JobSourcesSidebarProps> = ({
               )}
               <span>{source.name}</span>
             </div>
-            <Switch 
-              checked={source.enabled}
-              onCheckedChange={(checked) => onToggleSource(source.id, checked)}
-            />
+            <div 
+              onClick={() => onToggleSource(source.id, !source.enabled)}
+              className="cursor-pointer"
+            >
+              <Switch 
+                checked={source.enabled}
+                onCheckedChange={(checked) => onToggleSource(source.id, checked)}
+              />
+            </div>
           </div>
         ))}
       </div>

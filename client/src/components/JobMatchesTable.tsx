@@ -30,12 +30,12 @@ const JobMatchesTable: React.FC<JobMatchesTableProps> = ({
   };
 
   return (
-    <div className="mt-8">
+    <div className="mt-10">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Example Job Matches</h2>
+        <h2 className="text-xl font-semibold">Example Job Matches</h2>
         <button 
           onClick={toggleVisibility}
-          className="text-foreground flex items-center text-sm"
+          className="text-muted-foreground flex items-center text-sm"
         >
           {isVisible ? 'Hide Jobs' : 'Show Jobs'} 
           <ChevronUp className={`ml-1 w-4 h-4 transition-transform ${isVisible ? '' : 'transform rotate-180'}`} />
@@ -43,59 +43,51 @@ const JobMatchesTable: React.FC<JobMatchesTableProps> = ({
       </div>
       
       {isVisible && (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border border-border rounded-md">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-left border-b border-border">
-                <th className="py-3 pr-4 font-medium">Position</th>
-                <th className="py-3 px-4 font-medium">Company</th>
-                <th className="py-3 px-4 font-medium">Location</th>
-                <th className="py-3 px-4 font-medium">Posted</th>
-                <th className="py-3 pl-4 font-medium">Actions</th>
+              <tr className="text-left bg-secondary/50">
+                <th className="px-4 py-3 font-medium text-sm">Position</th>
+                <th className="px-4 py-3 font-medium text-sm">Company</th>
+                <th className="px-4 py-3 font-medium text-sm">Location</th>
+                <th className="px-4 py-3 font-medium text-sm">Posted</th>
+                <th className="px-4 py-3 font-medium text-sm">Actions</th>
               </tr>
             </thead>
             <tbody>
               {jobs.map((job) => (
-                <tr key={job.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                  <td className="py-4 pr-4">{job.title}</td>
-                  <td className="py-4 px-4">{job.company}</td>
-                  <td className="py-4 px-4">{job.location || 'Remote'}</td>
-                  <td className="py-4 px-4">{job.posted_date || 'Unknown'}</td>
-                  <td className="py-4 pl-4 flex space-x-2">
+                <tr key={job.id} className="border-t border-border hover:bg-secondary/30 transition-colors">
+                  <td className="px-4 py-3 text-sm">{job.title}</td>
+                  <td className="px-4 py-3 text-sm">{job.company}</td>
+                  <td className="px-4 py-3 text-sm">{job.location || 'Remote'}</td>
+                  <td className="px-4 py-3 text-sm">{job.posted_date || 'Unknown'}</td>
+                  <td className="px-4 py-3 flex space-x-1">
                     <button
                       onClick={() => onGenerateCoverLetter(job.id)}
                       disabled={isGeneratingCoverLetter[job.id]}
-                      className="p-1 text-foreground rounded hover:bg-secondary transition-colors"
+                      className="p-1.5 rounded-md bg-secondary inline-flex items-center justify-center hover:bg-secondary/80 transition-colors"
                       title="Email with Cover Letter"
                     >
                       {isGeneratingCoverLetter[job.id] ? (
-                        <div className="w-5 h-5 animate-spin rounded-full border-t-2 border-foreground"></div>
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-foreground border-t-transparent"></div>
                       ) : (
-                        <Mail className="w-5 h-5" />
+                        <Mail className="w-4 h-4" />
                       )}
                     </button>
                     
-                    {coverLetterUrls[job.id] && (
-                      <a
-                        href={coverLetterUrls[job.id]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1 text-foreground rounded hover:bg-secondary transition-colors"
-                        title="Download Cover Letter"
-                      >
-                        <Download className="w-5 h-5" />
-                      </a>
-                    )}
+                    <button
+                      className="p-1.5 rounded-md bg-secondary inline-flex items-center justify-center hover:bg-secondary/80 transition-colors"
+                      title="Download Cover Letter"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
                     
-                    <a
-                      href={`https://example.com/job/${job.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1 text-foreground rounded hover:bg-secondary transition-colors"
+                    <button
+                      className="p-1.5 rounded-md bg-secondary inline-flex items-center justify-center hover:bg-secondary/80 transition-colors"
                       title="View Job Details"
                     >
-                      <ExternalLink className="w-5 h-5" />
-                    </a>
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
