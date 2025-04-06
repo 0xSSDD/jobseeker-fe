@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+  
+  /* Purple/Indigo color scheme for LinkUp */
+  --primary: 123, 31, 162; /* Deep Purple */
+  --primary-foreground: 255, 255, 255;
+  
+  --secondary: 247, 243, 255; /* Light Purple */
+  --secondary-foreground: 91, 32, 144;
+  
+  --muted: 241, 239, 254;
+  --muted-foreground: 113, 73, 148;
+  
+  --accent: 237, 229, 255;
+  --accent-foreground: 91, 32, 144;
+  
+  --destructive: 236, 73, 101;
+  --destructive-foreground: 255, 255, 255;
+  
+  --border: 237, 233, 254;
+  --input: 237, 233, 254;
+  --ring: 123, 31, 162;
+  
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+    
+    /* Dark mode adjustments */
+    --primary: 186, 104, 200; /* Lighter Purple for dark mode */
+    --primary-foreground: 255, 255, 255;
+    
+    --secondary: 71, 41, 91;
+    --secondary-foreground: 237, 221, 246;
+    
+    --muted: 45, 29, 55;
+    --muted-foreground: 186, 156, 216;
+    
+    --accent: 71, 41, 91;
+    --accent-foreground: 237, 221, 246;
+    
+    --border: 71, 41, 91;
+    --input: 71, 41, 91;
+    --ring: 186, 104, 200;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent;
+  }
+}
