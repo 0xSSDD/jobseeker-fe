@@ -1,129 +1,156 @@
 import React, { useState, useRef } from 'react';
-import { UploadIcon } from 'lucide-react';
-import { Resume } from '../models/Resume';
+import { Upload, FileText, Info } from 'lucide-react';
 
 interface ResumeUploadProps {
-  onUploadSuccess: (resume: Resume) => void;
+  onUploadSuccess: (resume: any) => void;
   isUploading?: boolean;
 }
 
-export default function ResumeUpload({ onUploadSuccess, isUploading = false }: ResumeUploadProps) {
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+const ResumeUpload: React.FC<ResumeUploadProps> = ({
+  onUploadSuccess,
+  isUploading = false
+}) => {
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type === 'application/pdf') {
-        setFile(droppedFile);
-        handleFileUpload(droppedFile);
-      } else {
-        alert('Please upload a PDF file');
-      }
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
     }
   };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0];
-      if (selectedFile.type === 'application/pdf') {
-        setFile(selectedFile);
-        handleFileUpload(selectedFile);
-      } else {
-        alert('Please upload a PDF file');
-      }
+  
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
     }
   };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileUpload = async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('resume', file);
-
-      const response = await fetch('/api/resume/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Resume upload failed');
-      }
-
-      const data = await response.json();
-      onUploadSuccess(data.resume);
-    } catch (error) {
-      console.error('Error uploading resume:', error);
-      setFile(null);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
     }
   };
-
-  return (
-    <div className="mb-6">
-      <h2 className="text-xl font-bold mb-4">Upload Your Resume</h2>
+  
+  const handleFile = async (file: File) => {
+    // In a real implementation, this would upload the file to a server
+    // and get back parsed resume data
+    
+    // Simulate a server response with a timeout
+    setTimeout(() => {
+      const mockResumeData = {
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        phone: '(555) 123-4567',
+        skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
+        experiences: [
+          {
+            title: 'Frontend Developer',
+            company: 'Tech Company',
+            startDate: '2020-01',
+            endDate: '2022-12',
+            description: 'Developed and maintained web applications using React and TypeScript.'
+          }
+        ],
+        education: [
+          {
+            institution: 'University of Technology',
+            degree: 'Bachelor of Science',
+            field: 'Computer Science',
+            startDate: '2015-09',
+            endDate: '2019-06'
+          }
+        ],
+        summary: 'Experienced web developer with a focus on frontend technologies.',
+        latestRole: {
+          title: 'Frontend Developer',
+          company: 'Tech Company',
+          startDate: '2020-01',
+          endDate: '2022-12',
+          description: 'Developed and maintained web applications using React and TypeScript.'
+        }
+      };
       
-      <div className="mb-3">
-        <label className="block text-sm font-medium mb-2">Resume (PDF)</label>
+      onUploadSuccess(mockResumeData);
+    }, 1500);
+  };
+  
+  const onButtonClick = () => {
+    if (inputRef.current) {
+      inputRef.current.click();
+    }
+  };
+  
+  return (
+    <div className="mb-8">
+      <div 
+        className={`
+          relative border-2 border-dashed rounded-lg p-8 text-center 
+          ${dragActive ? 'border-primary bg-primary/5' : 'border-gray-700 hover:border-primary/70'} 
+          transition-colors
+        `}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.txt"
+          onChange={handleChange}
+          className="hidden"
+        />
         
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-            ${isDragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={handleButtonClick}
-        >
-          <div className="flex flex-col items-center justify-center py-6">
-            <UploadIcon className="h-12 w-12 mb-3 text-gray-400" />
-            <p className="mb-2">Click to upload or drag and drop</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">PDF (MAX. 10MB)</p>
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+            <FileText className="w-8 h-8 text-primary" />
           </div>
           
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf"
-            className="hidden"
-            onChange={handleFileInputChange}
-          />
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold text-white">Upload Your Resume</h3>
+            <p className="text-gray-400 max-w-md mx-auto">
+              Drag and drop your resume file or click to browse. We support PDF, DOC, DOCX, and TXT formats.
+            </p>
+          </div>
+          
+          <button
+            onClick={onButtonClick}
+            disabled={isUploading}
+            className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-md flex items-center space-x-2 transition-colors"
+          >
+            {isUploading ? (
+              <>
+                <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-5 h-5" />
+                <span>Select Resume</span>
+              </>
+            )}
+          </button>
+          
+          <div className="flex items-center text-gray-400 text-sm">
+            <Info className="w-4 h-4 mr-1" />
+            <span>Your resume will be analyzed by our AI to find the best job matches</span>
+          </div>
         </div>
       </div>
-
-      <button
-        className={`w-full py-2.5 px-4 rounded-lg font-medium text-white 
-          ${isUploading || !file 
-            ? 'bg-gray-400 cursor-not-allowed' 
-            : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'}`}
-        disabled={isUploading || !file}
-      >
-        {isUploading ? 'Uploading...' : 'Find Matching Jobs'}
-      </button>
     </div>
   );
-}
+};
+
+export default ResumeUpload;

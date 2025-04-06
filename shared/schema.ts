@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, json, timestamp, uuid, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,40 +16,18 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 // Resumes schema
 export const resumes = pgTable("resumes", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  filePath: text("file_path").notNull(),
-  latestRole: text("latest_role").notNull(),
-  skills: text("skills").array().notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  id: serial("id").primaryKey(),
+  user_id: integer("user_id"),
+  filename: text("filename").notNull(),
+  originalname: text("originalname").notNull(),
+  mimetype: text("mimetype").notNull(),
+  size: integer("size").notNull(),
+  uploaded_at: text("uploaded_at").notNull(),
+  content: text("content"),
 });
 
 export const insertResumeSchema = createInsertSchema(resumes).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Experiences schema
-export const experiences = pgTable("experiences", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resumeId: uuid("resume_id").references(() => resumes.id, { onDelete: 'cascade' }),
-  title: text("title").notNull(),
-  company: text("company").notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date"),
-  description: text("description"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
-
-export const insertExperienceSchema = createInsertSchema(experiences).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 // Job sources schema
@@ -65,88 +43,37 @@ export const insertJobSourceSchema = createInsertSchema(jobSources).omit({
   id: true,
 });
 
-// Job listings schema
-export const jobListings = pgTable("job_listings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resumeId: uuid("resume_id").references(() => resumes.id, { onDelete: 'cascade' }),
+// Jobs schema (renamed from job_listings to match existing schema)
+export const jobs = pgTable("jobs", {
+  id: serial("id").primaryKey(),
   title: text("title").notNull(),
   company: text("company").notNull(),
   location: text("location"),
   description: text("description").notNull(),
-  requirements: text("requirements").array(),
-  url: text("url").notNull(),
-  source: text("source").default('linkedin'),
-  postedDate: timestamp("posted_date", { withTimezone: true }),
   salary: text("salary"),
-  hiringManagerName: text("hiring_manager_name"),
-  hiringManagerEmail: text("hiring_manager_email"),
-  hiringManagerTitle: text("hiring_manager_title"),
-  processed: boolean("processed").default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  posted_date: text("posted_date"),
+  match_score: integer("match_score").default(0),
+  apply_url: text("apply_url").notNull(),
+  logo: text("logo"),
+  source: text("source").default('linkedin'),
 });
 
-export const insertJobListingSchema = createInsertSchema(jobListings).omit({
+export const insertJobSchema = createInsertSchema(jobs).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
-// Cover letters schema
-export const coverLetters = pgTable("coverletters", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resumeId: uuid("resume_id").references(() => resumes.id, { onDelete: 'cascade' }),
-  jobId: uuid("job_id").references(() => jobListings.id, { onDelete: 'cascade' }),
+// Cover letters schema (renamed from coverletters to match existing schema)
+export const coverLetters = pgTable("cover_letters", {
+  id: serial("id").primaryKey(),
+  resume_id: integer("resume_id").references(() => resumes.id),
+  job_id: integer("job_id").references(() => jobs.id),
   content: text("content").notNull(),
-  filePath: text("file_path").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  file_path: text("file_path"),
+  created_at: text("created_at").notNull(),
 });
 
 export const insertCoverLetterSchema = createInsertSchema(coverLetters).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Email drafts schema
-export const emailDrafts = pgTable("email_drafts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resumeId: uuid("resume_id").references(() => resumes.id, { onDelete: 'cascade' }),
-  jobId: uuid("job_id").references(() => jobListings.id, { onDelete: 'cascade' }),
-  coverLetterId: uuid("cover_letter_id").references(() => coverLetters.id, { onDelete: 'cascade' }),
-  subject: text("subject").notNull(),
-  recipient: text("recipient").notNull(),
-  body: text("body").notNull(),
-  sent: boolean("sent").default(false),
-  sentAt: timestamp("sent_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
-
-export const insertEmailDraftSchema = createInsertSchema(emailDrafts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Applications schema
-export const applications = pgTable("applications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  resumeId: uuid("resume_id").references(() => resumes.id, { onDelete: 'cascade' }),
-  jobId: uuid("job_id").references(() => jobListings.id, { onDelete: 'cascade' }),
-  coverLetterId: uuid("cover_letter_id").references(() => coverLetters.id),
-  emailDraftId: uuid("email_draft_id").references(() => emailDrafts.id),
-  status: text("status").notNull(),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
-
-export const insertApplicationSchema = createInsertSchema(applications).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 // Export types
@@ -156,20 +83,11 @@ export type User = typeof users.$inferSelect;
 export type InsertResume = z.infer<typeof insertResumeSchema>;
 export type Resume = typeof resumes.$inferSelect;
 
-export type InsertExperience = z.infer<typeof insertExperienceSchema>;
-export type Experience = typeof experiences.$inferSelect;
-
 export type InsertJobSource = z.infer<typeof insertJobSourceSchema>;
 export type JobSource = typeof jobSources.$inferSelect;
 
-export type InsertJobListing = z.infer<typeof insertJobListingSchema>;
-export type JobListing = typeof jobListings.$inferSelect;
+export type InsertJob = z.infer<typeof insertJobSchema>;
+export type Job = typeof jobs.$inferSelect;
 
 export type InsertCoverLetter = z.infer<typeof insertCoverLetterSchema>;
 export type CoverLetter = typeof coverLetters.$inferSelect;
-
-export type InsertEmailDraft = z.infer<typeof insertEmailDraftSchema>;
-export type EmailDraft = typeof emailDrafts.$inferSelect;
-
-export type InsertApplication = z.infer<typeof insertApplicationSchema>;
-export type Application = typeof applications.$inferSelect;

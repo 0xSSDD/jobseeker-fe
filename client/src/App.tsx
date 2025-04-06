@@ -15,13 +15,13 @@ function Router() {
 }
 
 function App() {
-  // Initialize dark mode based on system preference
+  // Always use dark mode for our indie hacker style
   useEffect(() => {
-    // Check if user prefers dark mode
-    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Remove light class if it exists
+    document.documentElement.classList.remove('light');
     
-    // Set initial theme based on preference
-    document.documentElement.classList.toggle('dark', prefersDarkMode);
+    // Make sure dark mode is always on
+    document.documentElement.classList.add('dark');
   }, []);
 
   return (

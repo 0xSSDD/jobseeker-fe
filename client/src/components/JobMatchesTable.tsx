@@ -1,108 +1,110 @@
 import React, { useState } from 'react';
-import { Job } from '../services/jobSearchService';
-import { ChevronUpIcon, ChevronDownIcon, MailIcon, DownloadIcon, ExternalLinkIcon } from 'lucide-react';
+import { Mail, Download, ExternalLink, ChevronUp } from 'lucide-react';
+
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  posted_date: string | null;
+  source: string;
+}
 
 interface JobMatchesTableProps {
   jobs: Job[];
-  onGenerateCoverLetter?: (jobId: string) => void;
-  onDownloadCoverLetter?: (jobId: string) => void;
-  onEmailJobApplication?: (jobId: string) => void;
+  onGenerateCoverLetter: (jobId: string) => void;
+  isGeneratingCoverLetter?: Record<string, boolean>;
+  coverLetterUrls?: Record<string, string>;
 }
 
-export default function JobMatchesTable({ 
-  jobs, 
+const JobMatchesTable: React.FC<JobMatchesTableProps> = ({
+  jobs,
   onGenerateCoverLetter,
-  onDownloadCoverLetter,
-  onEmailJobApplication 
-}: JobMatchesTableProps) {
+  isGeneratingCoverLetter = {},
+  coverLetterUrls = {}
+}) => {
   const [isVisible, setIsVisible] = useState(true);
 
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+  const toggleVisibility = () => {
+    setIsVisible(!isVisible);
   };
 
   return (
     <div className="mt-8">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-xl font-bold">Example Job Matches</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-white">Example Job Matches</h2>
         <button 
-          onClick={() => setIsVisible(!isVisible)}
-          className="flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          onClick={toggleVisibility}
+          className="text-gray-400 hover:text-white flex items-center"
         >
-          {isVisible ? (
-            <>
-              <span>Hide Jobs</span>
-              <ChevronUpIcon className="ml-1 h-4 w-4" />
-            </>
-          ) : (
-            <>
-              <span>Show Jobs</span>
-              <ChevronDownIcon className="ml-1 h-4 w-4" />
-            </>
-          )}
+          {isVisible ? 'Hide Jobs' : 'Show Jobs'} 
+          <ChevronUp className={`ml-1 w-4 h-4 transition-transform ${isVisible ? '' : 'transform rotate-180'}`} />
         </button>
       </div>
-
+      
       {isVisible && (
-        <div className="overflow-x-auto rounded-lg border dark:border-gray-700">
-          <table className="w-full text-left">
-            <thead className="bg-gray-100 dark:bg-gray-700">
-              <tr>
-                <th className="px-4 py-3 font-medium">Position</th>
-                <th className="px-4 py-3 font-medium">Company</th>
-                <th className="px-4 py-3 font-medium">Location</th>
-                <th className="px-4 py-3 font-medium">Posted</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
+        <div className="overflow-x-auto">
+          <table className="w-full bg-black bg-opacity-30 rounded-lg overflow-hidden">
+            <thead>
+              <tr className="text-left border-b border-gray-700">
+                <th className="px-4 py-3 text-gray-300 font-medium">Position</th>
+                <th className="px-4 py-3 text-gray-300 font-medium">Company</th>
+                <th className="px-4 py-3 text-gray-300 font-medium">Location</th>
+                <th className="px-4 py-3 text-gray-300 font-medium">Posted</th>
+                <th className="px-4 py-3 text-gray-300 font-medium">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y dark:divide-gray-700">
-              {jobs.length > 0 ? (
-                jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3">{job.title}</td>
-                    <td className="px-4 py-3">{job.company}</td>
-                    <td className="px-4 py-3">{job.location || 'Remote'}</td>
-                    <td className="px-4 py-3">{formatDate(job.postedDate?.toString())}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => onEmailJobApplication && onEmailJobApplication(job.id)}
-                          className="p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-                          title="Email application"
-                        >
-                          <MailIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => onDownloadCoverLetter && onDownloadCoverLetter(job.id)}
-                          className="p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-                          title="Download cover letter"
-                        >
-                          <DownloadIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => onGenerateCoverLetter && onGenerateCoverLetter(job.id)}
-                          className="p-1.5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-                          title="Generate cover letter"
-                        >
-                          <ExternalLinkIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
-                    Upload your resume to find matching jobs
+            <tbody>
+              {jobs.map((job) => (
+                <tr key={job.id} className="border-b border-gray-800 hover:bg-gray-900 transition-colors">
+                  <td className="px-4 py-4 text-white">{job.title}</td>
+                  <td className="px-4 py-4 text-white">{job.company}</td>
+                  <td className="px-4 py-4 text-white">{job.location || 'Remote'}</td>
+                  <td className="px-4 py-4 text-white">{job.posted_date || 'Unknown'}</td>
+                  <td className="px-4 py-4 flex space-x-2">
+                    <button
+                      onClick={() => onGenerateCoverLetter(job.id)}
+                      disabled={isGeneratingCoverLetter[job.id]}
+                      className="p-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+                      title="Generate Cover Letter"
+                    >
+                      {isGeneratingCoverLetter[job.id] ? (
+                        <div className="w-5 h-5 animate-spin rounded-full border-t-2 border-white"></div>
+                      ) : (
+                        <Mail className="w-5 h-5" />
+                      )}
+                    </button>
+                    
+                    {coverLetterUrls[job.id] && (
+                      <a
+                        href={coverLetterUrls[job.id]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+                        title="Download Cover Letter"
+                      >
+                        <Download className="w-5 h-5" />
+                      </a>
+                    )}
+                    
+                    <a
+                      href={`https://example.com/job/${job.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+                      title="View Job Details"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default JobMatchesTable;

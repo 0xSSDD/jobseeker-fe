@@ -1,70 +1,106 @@
-import React from 'react';
-import { JobSource } from '../services/jobSearchService';
-import { SiLinkedin, SiIndeed, SiGlassdoor, SiMonster } from 'react-icons/si';
-import { BriefcaseIcon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Switch } from './ui/switch';
 
-interface JobSourcesSidebarProps {
-  jobSources: JobSource[];
-  onToggleJobSource?: (id: number, enabled: boolean) => Promise<void>;
+interface JobSource {
+  id: number;
+  name: string;
+  key: string;
+  enabled: boolean;
+  logo: string | null;
 }
 
-export default function JobSourcesSidebar({ jobSources, onToggleJobSource }: JobSourcesSidebarProps) {
-  
-  const getIconForSource = (key: string) => {
-    switch (key.toLowerCase()) {
-      case 'linkedin':
-        return <SiLinkedin className="h-5 w-5" />;
-      case 'indeed':
-        return <SiIndeed className="h-5 w-5" />;
-      case 'glassdoor':
-        return <SiGlassdoor className="h-5 w-5" />;
-      case 'ziprecruiter':
-        return <BriefcaseIcon className="h-5 w-5" />;
-      case 'monster':
-        return <SiMonster className="h-5 w-5" />;
-      default:
-        return <BriefcaseIcon className="h-5 w-5" />;
-    }
-  };
+const JobSourcesSidebar: React.FC = () => {
+  const [jobSources, setJobSources] = useState<JobSource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleToggle = (id: number, enabled: boolean) => {
-    if (onToggleJobSource) {
-      onToggleJobSource(id, !enabled);
+  useEffect(() => {
+    const fetchJobSources = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/job-sources');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch job sources');
+        }
+        
+        const data = await response.json();
+        setJobSources(data.jobSources || []);
+      } catch (err) {
+        console.error('Error fetching job sources:', err);
+        setError('Failed to load job sources');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobSources();
+  }, []);
+
+  const toggleJobSource = async (id: number, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/job-sources/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update job source');
+      }
+      
+      // Update local state
+      setJobSources(prev => 
+        prev.map(source => 
+          source.id === id ? { ...source, enabled } : source
+        )
+      );
+    } catch (err) {
+      console.error('Error toggling job source:', err);
     }
   };
 
   return (
-    <div className="h-full p-4 dark:bg-gray-800 dark:text-white">
-      <h2 className="text-xl font-bold mb-4">Job Sources</h2>
+    <div className="bg-black bg-opacity-90 p-5 h-full rounded-l-xl">
+      <h2 className="text-white text-xl font-semibold mb-6">Job Sources</h2>
       
-      <div className="space-y-3">
-        {jobSources.map((source) => (
-          <div key={source.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {getIconForSource(source.key)}
-              <span>{source.name}</span>
-            </div>
-            
-            <label className="inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox"
-                className="sr-only peer"
-                checked={source.enabled}
-                onChange={() => handleToggle(source.id, source.enabled)}
-              />
-              <div className={`relative w-11 h-6 rounded-full peer-focus:outline-none 
-                peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 
-                ${source.enabled ? 
-                  'bg-blue-600 after:translate-x-full after:border-white' : 
-                  'bg-gray-200 dark:bg-gray-700 after:border-gray-300 dark:after:border-gray-600'} 
-                after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                after:bg-white after:border after:rounded-full after:h-5 after:w-5 
-                after:transition-all dark:border-gray-600`}>
+      {loading ? (
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-white"></div>
+        </div>
+      ) : error ? (
+        <div className="text-red-500 text-sm">{error}</div>
+      ) : (
+        <div className="space-y-4">
+          {jobSources.map((source) => (
+            <div key={source.id} className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {source.logo ? (
+                  <img 
+                    src={source.logo} 
+                    alt={source.name} 
+                    className="w-5 h-5 rounded-full"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white">
+                    {source.name.charAt(0)}
+                  </div>
+                )}
+                <span className="text-white">{source.name}</span>
               </div>
-            </label>
-          </div>
-        ))}
-      </div>
+              <Switch 
+                checked={source.enabled}
+                onCheckedChange={(checked) => toggleJobSource(source.id, checked)}
+                className="data-[state=checked]:bg-indigo-600"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default JobSourcesSidebar;
