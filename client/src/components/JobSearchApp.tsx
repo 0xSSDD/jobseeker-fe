@@ -170,16 +170,14 @@ export default function JobSearchApp() {
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
-      {state.resume && (
-        <div className="hidden md:block">
-          <Sidebar 
-            onSourcesChange={handleUpdateSources}
-            onSearch={handleStartSearch}
-            jobTitle={state.jobTitle}
-            location={state.location}
-          />
-        </div>
-      )}
+      <div className="md:block">
+        <Sidebar 
+          onSourcesChange={handleUpdateSources}
+          onSearch={handleStartSearch}
+          jobTitle={state.jobTitle}
+          location={state.location}
+        />
+      </div>
       
       <div className="flex-1 space-y-6">
         <Card className="overflow-hidden border-0 shadow-md">
@@ -220,17 +218,15 @@ export default function JobSearchApp() {
           </CardContent>
         </Card>
         
-        {/* Mobile sidebar shown below results on small screens */}
-        {state.resume && state.currentStep === "results" && (
-          <div className="md:hidden">
-            <Sidebar 
-              onSourcesChange={handleUpdateSources}
-              onSearch={handleStartSearch}
-              jobTitle={state.jobTitle}
-              location={state.location}
-            />
-          </div>
-        )}
+        {/* Mobile sidebar shown below the main content on small screens */}
+        <div className="md:hidden mt-6">
+          <Sidebar 
+            onSourcesChange={handleUpdateSources}
+            onSearch={handleStartSearch}
+            jobTitle={state.jobTitle}
+            location={state.location}
+          />
+        </div>
       </div>
     </div>
   );
