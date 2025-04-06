@@ -40,7 +40,7 @@ export const jobs = pgTable("jobs", {
   salary: text("salary"),
   postedDate: text("posted_date").notNull(),
   matchScore: integer("match_score"),
-  url: text("url"),
+  applyUrl: text("apply_url"), // URL to apply for the job
   logo: text("logo"),
 });
 
