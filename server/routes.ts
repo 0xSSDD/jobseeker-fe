@@ -55,8 +55,8 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Upload resume endpoint
-  app.post("/api/resume/upload", upload.single("resume"), async (req, res) => {
+  // Upload-only endpoint
+  app.post("/api/resume/upload-only", upload.single("resume"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -64,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[UPLOAD] File received:", req.file.originalname);
 
-      // Use the buffer directly from multer - no file system operations
+      // Use the buffer directly from multer
       const fileBuffer = req.file.buffer;
       const supabasePath = `resumes/${Date.now()}-${req.file.originalname}`;
 
@@ -88,8 +88,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[UPLOAD] File uploaded successfully to Supabase");
 
-      // Normally we would parse the resume here using a service like Claude or GPT
-      // For this demo, we'll just use sample data
+      // Create a minimal record for the uploaded file
+      const resumeData: InsertResume = {
+        filename: req.file.originalname,
+        storage_path: supabasePath,
+        skills: null,
+        parsed_content: null
+      };
+
+      // Validate and save basic file info
+      const validatedResume = insertResumeSchema.parse(resumeData);
+      const savedResume = await storage.saveResume(validatedResume);
+
+      // Return just the file ID for further processing
+      res.status(200).json({
+        message: "Resume uploaded successfully",
+        fileId: savedResume.id
+      });
+    } catch (error) {
+      console.error("Resume upload error:", error);
+      res.status(500).json({ error: "Failed to upload resume" });
+    }
+  });
+
+  // Process endpoint
+  app.post("/api/resume/process", async (req, res) => {
+    try {
+      const { fileId } = req.body;
+
+      if (!fileId) {
+        return res.status(400).json({ error: "File ID is required" });
+      }
+
+      // Get the resume record
+      const resume = await storage.getResumeById(fileId);
+
+      if (!resume) {
+        return res.status(404).json({ error: "Resume not found" });
+      }
+
+      console.log("[PROCESS] Processing resume:", resume.filename);
+
+      // In a real app, you would:
+      // 1. Get the file from storage
+      // 2. Use an AI service to parse it
+      // 3. Update the resume record with parsed data
+
+      // For this demo, using sample data as before
       const parsedSkills = ["JavaScript", "React", "Node.js", "TypeScript"];
       const parsedContent = JSON.stringify({
         name: "John Doe",
@@ -108,32 +153,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ]
       });
 
-      // Prepare resume data for Supabase format
-      const resumeData: InsertResume = {
-        filename: req.file.originalname,
-        storage_path: supabasePath,
+      // Update the resume with parsed data
+      const updatedResume = await storage.updateResume(fileId, {
         skills: parsedSkills,
         parsed_content: parsedContent
-      };
+      });
 
-      // Validate the resume data
-      const validatedResume = insertResumeSchema.parse(resumeData);
+      console.log("[PROCESS] Resume processed successfully");
 
-      // Save to storage
-      const savedResume = await storage.saveResume(validatedResume);
-
-      // Return both the saved resume and the parsed content for the frontend
+      // Return the processed resume
       res.status(200).json({
-        message: "Resume uploaded successfully",
-        resume: savedResume,
+        message: "Resume processed successfully",
+        resume: updatedResume,
         parsedData: JSON.parse(parsedContent)
       });
     } catch (error) {
-      console.error("Resume upload error:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid resume data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to upload resume" });
+      console.error("Resume processing error:", error);
+      res.status(500).json({ error: "Failed to process resume" });
     }
   });
 

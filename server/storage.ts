@@ -144,6 +144,9 @@ export interface IStorage {
   getCoverLetterById(id: string): Promise<CoverLetter | undefined>;
   getCoverLettersByResumeId(resumeId: string): Promise<CoverLetter[]>;
   getCoverLetterByJobId(jobId: string): Promise<CoverLetter | undefined>;
+
+  // New method
+  updateResume(id: string, data: Partial<InsertResume>): Promise<Resume>;
 }
 
 // Database storage implementation using Supabase
@@ -351,6 +354,23 @@ export class DatabaseStorage implements IStorage {
 
     if (error || !data) return undefined;
     return data as CoverLetter;
+  }
+
+  // New method
+  async updateResume(id: string, data: Partial<InsertResume>): Promise<Resume> {
+    const { data: resumeData, error } = await supabase
+      .from('resumes')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating resume:", error);
+      throw error;
+    }
+
+    return resumeData;
   }
 }
 
