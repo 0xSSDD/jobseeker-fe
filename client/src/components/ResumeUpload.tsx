@@ -17,8 +17,6 @@ interface ResumeUploadProps {
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({
   onUploadSuccess,
-  isUploading = false,
-  hasResume = false
 }) => {
   const [processState, setProcessState] = useState<ProcessState>(ProcessState.INITIAL);
   const [dragActive, setDragActive] = useState(false);
@@ -204,8 +202,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         </div>
       )}
 
-      {/* Upload area - only show if we're not yet processed */}
-      {processState !== ProcessState.PROCESSED && (
+      {/* Upload area - only show in initial or uploading states */}
+      {(processState === ProcessState.INITIAL || processState === ProcessState.UPLOADING) && (
         <div
           className={`
             relative border-2 border-border rounded-md p-8 text-center
@@ -234,7 +232,14 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         </div>
       )}
 
-      {/* Show resume info if processed */}
+      {/* Status messages */}
+      {processState === ProcessState.UPLOADED && (
+        <div className="mb-4 p-4 bg-green-50 rounded-md">
+          <h4 className="font-medium text-green-800">Resume Ready</h4>
+          <p className="text-sm text-green-700">Your resume has been uploaded and is ready to be processed.</p>
+        </div>
+      )}
+
       {processState === ProcessState.PROCESSED && (
         <div className="mb-4 p-4 bg-green-50 rounded-md">
           <h4 className="font-medium text-green-800">Resume Ready</h4>
