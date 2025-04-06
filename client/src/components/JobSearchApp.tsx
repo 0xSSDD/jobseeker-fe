@@ -3,7 +3,7 @@ import { UploadStep } from "./UploadStep";
 import { LoadingStep } from "./LoadingStep";
 import { ResultsStep } from "./ResultsStep";
 import Sidebar from "./Sidebar";
-import { JobSearchState, Resume, UploadedFile } from "@/types";
+import { JobSearchState, Resume, UploadedFile } from "../types";
 import { queryClient } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 import { Button } from "./ui/button";

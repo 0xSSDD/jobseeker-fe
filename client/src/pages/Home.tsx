@@ -47,7 +47,7 @@ export default function Home() {
         source: 'glassdoor'
       }
     ];
-    
+
     setJobs(mockJobs);
   }, []);
 
@@ -63,11 +63,11 @@ export default function Home() {
       ...prev,
       [jobId]: true
     }));
-    
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Set the cover letter URL
       setCoverLetterUrls(prev => ({
         ...prev,
@@ -86,17 +86,17 @@ export default function Home() {
 
   return (
     <MainLayout>
-      <ResumeUpload 
+      <ResumeUpload
         onUploadSuccess={handleUploadSuccess}
         isUploading={isUploading}
       />
-      
-      <JobMatchesTable 
+
+      {/* <JobMatchesTable
         jobs={jobs}
         onGenerateCoverLetter={handleGenerateCoverLetter}
         isGeneratingCoverLetter={isGeneratingCoverLetter}
         coverLetterUrls={coverLetterUrls}
-      />
+      /> */}
     </MainLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Resume, DropzoneState } from "@/types";
+import { Resume, DropzoneState } from "../types";
 import { useToast } from "../hooks/use-toast";
 import { Check, Upload, X } from "lucide-react";
 
