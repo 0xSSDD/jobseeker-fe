@@ -1,4 +1,4 @@
-import { Resume, Job } from "@shared/schema";
+import { Resume, JobListing } from "@shared/types";
 
 export interface UploadedFile {
   filename: string;
@@ -14,7 +14,7 @@ export interface JobSearchState {
   resume: UploadedFile | null;
   jobTitle: string;
   location: string;
-  jobs: Job[];
+  jobs: JobListing[];
   isSearching: boolean;
   error: string | null;
   jobSources: string[];

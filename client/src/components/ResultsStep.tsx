@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import JobCard from "./JobCard";
-import { Job } from "@shared/schema";
+import { JobListing } from "@shared/types";
 import { useState } from "react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 
 interface ResultsStepProps {
-  jobs: Job[];
+  jobs: JobListing[];
   onSearchAgain: () => void;
 }
 
@@ -32,7 +32,7 @@ export function ResultsStep({ jobs, onSearchAgain }: ResultsStepProps) {
           New Search
         </Button>
       </div>
-      
+
       <p className="text-gray-600">
         We found {jobs.length} job{jobs.length === 1 ? "" : "s"} matching your profile. Each job has a personalized cover letter ready to download or send.
       </p>
@@ -42,10 +42,10 @@ export function ResultsStep({ jobs, onSearchAgain }: ResultsStepProps) {
           {jobs.slice(0, visibleJobs).map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
-          
+
           {jobs.length > visibleJobs && (
             <div className="flex justify-center mt-6">
-              <Button 
+              <Button
                 variant="outline"
                 className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 flex items-center gap-2"
                 onClick={handleLoadMore}

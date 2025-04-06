@@ -1,4 +1,4 @@
-import { Job } from "@shared/schema";
+import { JobListing } from "@shared/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,12 +6,12 @@ import { Download, Mail, ExternalLink, Star, Building, DollarSign, MapPin, Clock
 import { useState } from "react";
 
 interface JobCardProps {
-  job: Job;
+  job: JobListing;
 }
 
 export default function JobCard({ job }: JobCardProps) {
   const [expanded, setExpanded] = useState(false);
-  
+
   // Function to calculate days ago from posted date
   const getDaysAgo = (postedDate: string) => {
     try {
@@ -19,7 +19,7 @@ export default function JobCard({ job }: JobCardProps) {
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - posted.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays === 0) {
         return "Today";
       } else if (diffDays === 1) {
@@ -52,11 +52,11 @@ export default function JobCard({ job }: JobCardProps) {
     // This would typically trigger a download of the cover letter
     alert("In a real app, this would download your customized cover letter as a PDF/DOCX file");
   };
-  
+
   // Get job source label
   const getSourceIcon = (source: string | null) => {
     if (!source) return null;
-    
+
     switch (source) {
       case 'linkedin':
         return <Badge variant="outline" className="flex items-center gap-1 bg-[#0077b5] bg-opacity-10 text-[#0077b5] border-[#0077b5] border-opacity-30">
@@ -88,10 +88,10 @@ export default function JobCard({ job }: JobCardProps) {
       <CardContent className="p-0">
         <div className="p-5">
           <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 hidden sm:block">
+            {/* <div className="flex-shrink-0 hidden sm:block">
               <CompanyLogo company={job.company} logo={job.logo || ''} />
-            </div>
-            
+            </div> */}
+
             <div className="flex-grow">
               <div className="flex items-start justify-between">
                 <div>
@@ -113,21 +113,21 @@ export default function JobCard({ job }: JobCardProps) {
                     )}
                   </div>
                 </div>
-                
-                {job.matchScore && (
+
+                {/* {job.matchScore && (
                   <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                    <Star className="mr-1 h-3 w-3 fill-green-500 text-green-100" /> 
+                    <Star className="mr-1 h-3 w-3 fill-green-500 text-green-100" />
                     {job.matchScore}% Match
                   </Badge>
-                )}
+                )} */}
               </div>
-              
+
               <div className="mt-3">
                 <p className={`text-sm text-gray-600 ${expanded ? '' : 'line-clamp-2'}`}>
                   {job.description}
                 </p>
                 {job.description && job.description.length > 150 && (
-                  <button 
+                  <button
                     className="text-xs text-indigo-600 hover:text-indigo-800 mt-1"
                     onClick={() => setExpanded(!expanded)}
                   >
@@ -135,30 +135,30 @@ export default function JobCard({ job }: JobCardProps) {
                   </button>
                 )}
               </div>
-              
+
               <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
                 <div className="flex items-center">
                   <Clock className="mr-1 h-3.5 w-3.5" />
-                  Posted {getDaysAgo(job.postedDate)}
+                  Posted {getDaysAgo(job.posted_date || '')}
                 </div>
-                
+
                 {job.source && getSourceIcon(job.source)}
               </div>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gray-50 p-3 flex flex-wrap gap-2 justify-end border-t border-gray-100">
           <Button
             variant="outline"
             size="sm"
             className="text-xs bg-white"
-            onClick={() => window.open(job.applyUrl || '#', '_blank')}
+            onClick={() => window.open(job.url || '#', '_blank')}
           >
             <ExternalLink className="mr-1 h-3.5 w-3.5" />
             View Job
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -168,7 +168,7 @@ export default function JobCard({ job }: JobCardProps) {
             <Mail className="mr-1 h-3.5 w-3.5" />
             Send via Email
           </Button>
-          
+
           <Button
             size="sm"
             className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -188,10 +188,10 @@ function CompanyLogo({ company, logo }: { company: string; logo: string }) {
   if (logo && logo.startsWith('http')) {
     return (
       <div className="h-12 w-12 flex items-center justify-center rounded-full bg-white border border-gray-200">
-        <img 
-          className="h-8 w-8 object-contain" 
-          src={logo} 
-          alt={`${company} logo`} 
+        <img
+          className="h-8 w-8 object-contain"
+          src={logo}
+          alt={`${company} logo`}
         />
       </div>
     );

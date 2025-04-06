@@ -3,13 +3,13 @@ import { UploadStep } from "./UploadStep";
 import { LoadingStep } from "./LoadingStep";
 import { ResultsStep } from "./ResultsStep";
 import Sidebar from "./Sidebar";
-import { JobSearchState, UploadedFile, CurrentStep } from "@/types";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { JobSearchState, UploadedFile } from "@/types";
+import { queryClient } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { Search, Upload } from "lucide-react";
 
 export default function JobSearchApp() {
@@ -46,7 +46,7 @@ export default function JobSearchApp() {
       location,
     });
   };
-  
+
   const handleUpdateSources = (sources: string[]) => {
     setState({
       ...state,
@@ -58,7 +58,7 @@ export default function JobSearchApp() {
     // Use arguments if provided, otherwise use state
     const searchJobTitle = jobTitle !== undefined ? jobTitle : state.jobTitle;
     const searchLocation = location !== undefined ? location : state.location;
-    
+
     setState({
       ...state,
       currentStep: "loading",
@@ -82,11 +82,11 @@ export default function JobSearchApp() {
               sources: state.jobSources.length ? state.jobSources : undefined,
             }),
           });
-          
+
           if (!res.ok) {
             throw new Error("Failed to search for jobs");
           }
-          
+
           return res.json();
         },
       });
@@ -104,7 +104,7 @@ export default function JobSearchApp() {
         description: "Failed to search for jobs. Please try again.",
         variant: "destructive",
       });
-      
+
       setState(prevState => ({
         ...prevState,
         currentStep: "upload",
@@ -171,14 +171,14 @@ export default function JobSearchApp() {
   return (
     <div className="flex flex-col md:flex-row gap-6">
       <div className="md:block">
-        <Sidebar 
+        <Sidebar
           onSourcesChange={handleUpdateSources}
           onSearch={handleStartSearch}
           jobTitle={state.jobTitle}
           location={state.location}
         />
       </div>
-      
+
       <div className="flex-1 space-y-6">
         <Card className="overflow-hidden border-0 shadow-md">
           <CardContent className="p-6">
@@ -197,14 +197,14 @@ export default function JobSearchApp() {
                       <li>Download or send them directly via email</li>
                     </ol>
                   </div>
-                  
+
                   <UploadStep
                     resume={state.resume}
                     onUpload={handleResumeUpload}
                     onRemove={handleRemoveResume}
                     onContinue={() => {}}
                   />
-                  
+
                   {state.resume && renderJobSearchForm()}
                 </div>
               </>
@@ -217,10 +217,10 @@ export default function JobSearchApp() {
             )}
           </CardContent>
         </Card>
-        
+
         {/* Mobile sidebar shown below the main content on small screens */}
         <div className="md:hidden mt-6">
-          <Sidebar 
+          <Sidebar
             onSourcesChange={handleUpdateSources}
             onSearch={handleStartSearch}
             jobTitle={state.jobTitle}

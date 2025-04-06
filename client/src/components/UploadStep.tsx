@@ -6,7 +6,7 @@ import { Check, Upload, X } from "lucide-react";
 
 interface UploadStepProps {
   resume: UploadedFile | null;
-  onUpload: (resume: UploadedFile) => void;
+  onUpload: (file: UploadedFile) => void;
   onRemove: () => void;
   onContinue: () => void;
 }
@@ -90,14 +90,40 @@ export function UploadStep({ resume, onUpload, onRemove }: UploadStepProps) {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to upload resume');
       }
-      
+
       const data = await response.json();
-      onUpload(data.resume);
       
+      // The API returns both the resume record and additional parsed data
+      const { resume, parsedData } = data;
+      
+      // Ensure all required fields are present by combining the database record with parsed data
+      const completeResume: UploadedFile = {
+        ...resume,
+        // Add required fields from parsedData if they're missing in the resume record
+        name: resume.name || parsedData?.name || 'Not provided',
+        email: resume.email || parsedData?.email || 'Not provided',
+        phone: resume.phone || parsedData?.phone || 'Not provided',
+        // Ensure id is present
+        id: resume.id || 'default-id',
+        // Required fields from Resume interface
+        filename: resume.filename || file.name,
+        storage_path: resume.storage_path || resume.file_path || `/uploads/${file.name}`,
+        // These fields are required by the Resume type
+        uploaded_at: resume.uploaded_at || new Date().toISOString(),
+        parsed_content: resume.parsed_content || null,
+        user_id: resume.user_id || null,
+        // Add multer specific properties
+        originalname: file.name,
+        mimetype: file.type,
+        size: file.size
+      };
+      
+      onUpload(completeResume);
+
       toast({
         title: "Success",
         description: "Resume uploaded successfully",
@@ -154,7 +180,9 @@ export function UploadStep({ resume, onUpload, onRemove }: UploadStepProps) {
             <Check className="text-green-500 h-5 w-5" />
           </div>
           <div className="ml-3 flex-grow">
-            <p className="text-sm font-medium text-green-800">{resume.originalname}</p>
+            <p className="text-sm font-medium text-green-800">
+              {resume.originalname || resume.filename}
+            </p>
             <p className="mt-1 text-xs text-green-700">Ready to generate cover letters</p>
           </div>
           <button
