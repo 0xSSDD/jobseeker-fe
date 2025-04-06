@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Resume, DropzoneState } from "../types";
 import { useToast } from "../hooks/use-toast";
 import { Check, Upload, X } from "lucide-react";
+// TODO REMOVE THIS and the files that use this compnent
 
 interface UploadStepProps {
   resume: Resume | null;

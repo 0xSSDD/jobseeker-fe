@@ -5,7 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { z } from "zod";
-import { supabase } from "./supabase";
+import { supabase, supabaseAdmin } from "./supabase";
 
 // Define schemas for validation
 const insertResumeSchema = z.object({
@@ -38,21 +38,9 @@ const insertJobSourceSchema = z.object({
   enabled: z.boolean().optional()
 });
 
-// Configure multer for file uploads
+// Configure multer for memory storage instead of disk
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, uniqueSuffix + "-" + file.originalname);
-    },
-  }),
+  storage: multer.memoryStorage(), // Use memory storage
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -76,13 +64,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[UPLOAD] File received:", req.file.originalname);
 
-      // Upload file to Supabase storage
-      const fileBuffer = fs.readFileSync(req.file.path);
+      // Use the buffer directly from multer - no file system operations
+      const fileBuffer = req.file.buffer;
       const supabasePath = `resumes/${Date.now()}-${req.file.originalname}`;
 
       console.log("[UPLOAD] Uploading to Supabase storage:", supabasePath);
 
-      const { data: storageData, error: storageError } = await supabase
+      const { data: storageData, error: storageError } = await supabaseAdmin
         .storage
         .from('resumes')
         .upload(supabasePath, fileBuffer, {
@@ -91,8 +79,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       if (storageError) {
-        console.error("[UPLOAD] Supabase storage error:", storageError);
-        return res.status(500).json({ error: "Failed to upload to storage" });
+        console.error("[UPLOAD] Supabase storage error:", JSON.stringify(storageError, null, 2));
+        return res.status(500).json({
+          error: "Failed to upload to storage",
+          details: storageError
+        });
       }
 
       console.log("[UPLOAD] File uploaded successfully to Supabase");
@@ -130,9 +121,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save to storage
       const savedResume = await storage.saveResume(validatedResume);
-
-      // Clean up the local file
-      fs.unlinkSync(req.file.path);
 
       // Return both the saved resume and the parsed content for the frontend
       res.status(200).json({
