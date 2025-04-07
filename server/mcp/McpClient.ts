@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import mcpServers from '../config/mcpServers.json' assert { type: 'json' };
+import mcpServers from './mcpServers.json' assert { type: 'json' };
 
 /**
  * MCP client for interacting with MCP servers

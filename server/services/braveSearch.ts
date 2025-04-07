@@ -1,4 +1,4 @@
-import { MCPClient } from "./mcp";
+import { MCPClient } from "../mcp/McpClient";
 
 // TODO clean types up:
 // There is a literal client/src/types/index.ts - which does not even match the schema

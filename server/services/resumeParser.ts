@@ -1,5 +1,5 @@
 import { Anthropic } from '@anthropic-ai/sdk';
-import { MCPClient } from './mcp';
+import { MCPClient } from '../mcp/McpClient';
 import fs from 'fs';
 import path from 'path';
 import { PdfReader } from 'pdfreader';
