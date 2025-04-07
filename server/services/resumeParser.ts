@@ -4,6 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import { PdfReader } from 'pdfreader';
 
+// TODO clean types up:
+// There is a literal client/src/types/index.ts - which does not even match the schema
+// does the schema make sense?
+// and client/src/models/Resume.ts
+// currently each service has its types
 interface Experience {
   title: string;
   company: string;
@@ -139,27 +144,4 @@ function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
       }
     });
   });
-}
-
-/**
- * Find relevant job info using Brave Search
- */
-export async function findJobInfo(resume: Resume): Promise<any> {
-  try {
-    const skills = resume.skills.slice(0, 5).join(", ");
-    const role = resume.latestRole?.title || "professional";
-
-    const searchQuery = `job requirements for ${role} with skills in ${skills}`;
-
-    const searchResults = await MCPClient.executeToolCall(
-      'brave-search',
-      'search',
-      { query: searchQuery }
-    );
-
-    return searchResults;
-  } catch (error) {
-    console.error('[SEARCH] Error finding job info:', error);
-    return null;
-  }
 }

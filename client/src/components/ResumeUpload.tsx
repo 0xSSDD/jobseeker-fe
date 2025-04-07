@@ -7,17 +7,20 @@ enum ProcessState {
   UPLOADED = 'uploaded',       // File uploaded, ready to process, show "Process CV"
   PROCESSING = 'processing',   // CV is being processed by AI
   PROCESSED = 'processed',      // CV processed, show "Find Matching Jobs"
+  SEARCHING = 'searching',      // Add new state for job search
   FAILED = 'failed'  // Add this new state
 }
 
 interface ResumeUploadProps {
   onUploadSuccess: (resume: any) => void;
+  onJobsFound?: (jobs: any[]) => void;
   isUploading?: boolean;
   hasResume?: boolean;
 }
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({
   onUploadSuccess,
+  onJobsFound = () => {},
 }) => {
   const [processState, setProcessState] = useState<ProcessState>(ProcessState.INITIAL);
   const [dragActive, setDragActive] = useState(false);
@@ -140,6 +143,43 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
     }
   };
 
+  const searchJobs = async () => {
+    if (!uploadedFileId) {
+      setError("No uploaded resume to search with");
+      return;
+    }
+
+    setProcessState(ProcessState.SEARCHING);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/jobs/search", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resumeId: uploadedFileId })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Job search failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Job search successful:", data);
+
+      // Call the callback with the job results
+      onJobsFound(data.jobs);
+
+      // Return to processed state to allow searching again
+      setProcessState(ProcessState.PROCESSED);
+    } catch (error) {
+      console.error("Error searching for jobs:", error);
+      setError("Failed to find matching jobs. Please try again.");
+      setProcessState(ProcessState.PROCESSED); // Go back to processed state
+    }
+  };
+
   const onButtonClick = () => {
     switch (processState) {
       case ProcessState.INITIAL:
@@ -154,11 +194,11 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         processResume();
         break;
       case ProcessState.PROCESSED:
-        // This would trigger job search
-        // For now we'll just leave it as a button
+        // This now triggers job search
+        searchJobs();
         break;
       default:
-        // Do nothing during uploading/processing states
+        // Do nothing during uploading/processing/searching states
         break;
     }
   };
@@ -174,6 +214,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
         return "Processing...";
       case ProcessState.PROCESSED:
         return "Find Matching Jobs";
+      case ProcessState.SEARCHING:
+        return "Searching Jobs...";
       case ProcessState.FAILED:
         return "Try Processing Again";
       default:
@@ -253,7 +295,9 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({
 
       <button
         onClick={onButtonClick}
-        disabled={processState === ProcessState.UPLOADING || processState === ProcessState.PROCESSING}
+        disabled={processState === ProcessState.UPLOADING ||
+                 processState === ProcessState.PROCESSING ||
+                 processState === ProcessState.SEARCHING}
         className="w-full mt-4 py-3 flex justify-center items-center bg-secondary hover:bg-secondary/90 text-center rounded-md transition-colors text-sm font-medium"
       >
         {getButtonIcon()}

@@ -1,11 +1,3 @@
-// const sdk = require('@modelcontextprotocol/sdk');
-//@ts-ignore
-// import { ClientSession, StdioServerParameters } from '@modelcontextprotocol/sdk';
-// //@ts-ignore
-// import { stdio_client } from '@modelcontextprotocol/sdk/dist/cjs/client/stdio';
-// //@ts-ignore
-// import { AsyncExitStack } from '@modelcontextprotocol/sdk/dist/cjs/utils/async_exit_stack';
-
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import mcpServers from '../config/mcpServers.json' assert { type: 'json' };
@@ -43,6 +35,7 @@ export class MCPClient {
     // Create and connect client
     const client = new Client({ name: "jobseeker-mcp-client", version: "1.0.0" });
     await client.connect(this.transports[serverName]);
+    console.log('[MCP] Client created', client);
 
     // Store client for reuse
     this.clients[serverName] = client;
@@ -116,13 +109,6 @@ export class MCPClient {
     }
   }
 
-  /**
-   * List available tools from an MCP server
-   */
-  static async listAvailableTools(serverName: string): Promise<void> {
-    const tools = await this.getTools(serverName);
-    console.log(`Available tools for ${serverName}:`, tools.map(t => t.name));
-  }
 }
 
 // Add cleanup on process exit

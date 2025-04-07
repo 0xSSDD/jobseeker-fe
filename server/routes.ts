@@ -4,8 +4,8 @@ import { storage, type InsertResume, type InsertJobListing, type InsertJobSource
 import multer from "multer";
 import { z } from "zod";
 import {supabaseAdmin } from "./supabase";
-import { parseResume, findJobInfo } from "./services/resumeParser";
-
+import { parseResume } from "./services/resumeParser";
+import { findJobInfo } from "./services/braveSearch";
 // Define schemas for validation
 const insertResumeSchema = z.object({
   filename: z.string(),
@@ -201,27 +201,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         // Store the relevant jobs in our database
-        const jobs = await Promise.all(
-          searchResults.results.slice(0, 5).map(async (result: any) => {
-            // Create job listing from search result
-            const job = {
-              title: result.title || "Unknown Position",
-              company: result.company || "Unknown Company",
-              location: location || "Remote",
-              description: result.description || result.snippet || "",
-              requirements: resume.skills,
-              url: result.url,
-              source: "brave-search",
-              posted_date: new Date().toISOString(),
-              processed: false
-            };
+        // const jobs = await Promise.all(
+        //   searchResults.results.slice(0, 5).map(async (result: any) => {
+        //     // Create job listing from search result
+        //     const job = {
+        //       title: result.title || "Unknown Position",
+        //       company: result.company || "Unknown Company",
+        //       location: location || "Remote",
+        //       description: result.description || result.snippet || "",
+        //       requirements: resume.skills,
+        //       url: result.url,
+        //       source: "brave-search",
+        //       posted_date: new Date().toISOString(),
+        //       processed: false
+        //     };
 
-            // Store in database using saveJobListing
-            return await storage.saveJobListing(job);
-          })
-        );
+        //     // Store in database using saveJobListing
+        //     return await storage.saveJobListing(job);
+        //   })
+        // );
 
-        return res.status(200).json({ jobs });
+        return res.status(200).json({ searchResults });
       }
 
       // Fallback to standard search
